@@ -1392,3 +1392,28 @@ a.htmx-request {
     transition-duration: 0.001ms !important;
   }
 }
+
+.watch-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.watch-page .add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.watch-page .add-row .input {
+  flex: 1;
+}
+
+.watch-page .filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.watch-page .notice {
+  margin: 0;
+}

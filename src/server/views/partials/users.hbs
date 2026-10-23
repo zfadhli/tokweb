@@ -1,0 +1,74 @@
+{{#if notice}}<p class="notice is-error">{{notice}}</p>{{/if}}
+<form class="add-form" hx-post="/watch" hx-target="#users-panel" hx-swap="outerHTML" hx-disable="find button">
+  <div class="field">
+    <label for="watch-target">Username, live URL, or room id</label>
+    <div class="add-row">
+      <input class="input" id="watch-target" name="target" type="text" autocomplete="off" placeholder="@creator or https://tiktok.com/@creator/live" />
+      <button class="btn btn-primary" type="submit">Add user</button>
+    </div>
+  </div>
+</form>
+<div class="filter-row" role="group" aria-label="Filter users">
+  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'all' }" @click="filter = 'all'" :aria-pressed="filter === 'all'">All ({{counts.all}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'live' }" @click="filter = 'live'" :aria-pressed="filter === 'live'">Live ({{counts.live}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'recording' }" @click="filter = 'recording'" :aria-pressed="filter === 'recording'">Recording ({{counts.recording}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'offline' }" @click="filter = 'offline'" :aria-pressed="filter === 'offline'">Offline ({{counts.offline}})</button>
+</div>
+{{#if rows.length}}
+<div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th scope="col">User</th>
+        <th scope="col">Status</th>
+        <th scope="col">Quality</th>
+        <th scope="col">Auto</th>
+        <th scope="col">Interval</th>
+        <th scope="col"><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each rows}}
+      <tr x-show="filter === 'all' || filter === '{{bucket}}'">
+        <td>
+          <span class="user-cell">
+            <span class="avatar" aria-hidden="true">{{#if avatarUrl}}<img src="{{avatarUrl}}" alt="" />{{else}}{{initial}}{{/if}}</span>
+            <span class="cell-main">
+              <strong>@{{handle}}</strong>
+              <span>{{title}}</span>
+            </span>
+          </span>
+        </td>
+        <td><span class="{{chipClass}}">{{#if dot}}<span class="status-dot {{dotClass}}" aria-hidden="true"></span>{{/if}}{{status}}</span></td>
+        <td>
+          <select class="select" name="variant" aria-label="Quality for @{{handle}}" hx-patch="/watch/{{id}}" hx-trigger="change" hx-swap="none">
+            {{#each variants}}
+            <option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </td>
+        <td>
+          <label class="check"><input type="checkbox" name="autoRecord"{{#if autoRecord}} checked{{/if}} aria-label="Auto-record @{{handle}}" hx-patch="/watch/{{id}}" hx-trigger="change" hx-include="this" hx-swap="none" />Auto</label>
+        </td>
+        <td><span class="mono">{{intervalMin}} min</span></td>
+        <td>
+          <span class="row-actions">
+            <button class="btn btn-small btn-ghost" type="button" hx-post="/watch/{{id}}/check" hx-swap="none">Check</button>
+            {{#if isRecording}}
+            <button class="btn btn-small" type="button" hx-post="/watch/{{id}}/stop" hx-swap="none">Stop</button>
+            {{else}}
+            <button class="btn btn-small" type="button" hx-post="/watch/{{id}}/record" hx-swap="none">Record</button>
+            {{/if}}
+            <button class="icon-btn is-danger" type="button" aria-label="Remove @{{handle}}" hx-delete="/watch/{{id}}" hx-confirm="{{confirm}}" hx-swap="none">
+              <svg class="icon" aria-hidden="true"><use href="#i-trash" /></svg>
+            </button>
+          </span>
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+{{> empty title="No users on watch." hint="Add a creator above. Polling starts on the next interval."}}
+{{/if}}
