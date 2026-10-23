@@ -3,14 +3,8 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleResolution": "Bundler",
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "types": [
-      "bun"
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["bun"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -24,10 +18,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "@kitajs/html"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/**/*.ts",
-    "scripts/**/*.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "scripts/**/*.ts"]
 }

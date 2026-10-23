@@ -1,1 +1,22 @@
-{"statusCode":0,"data":{"user":{"uniqueId":"offlineuser","nickname":"Offline","roomId":"7000000000000000003","status":4},"liveRoom":{"status":4,"roomId":null,"title":"Last title","stats":{},"streamData":{"pull_data":{"stream_data":"{\"data\":{\"sd\":{\"main\":{\"flv\":\"https://cdn.example.com/stale.flv\"}}}}"}}}}}
+{
+  "statusCode": 0,
+  "data": {
+    "user": {
+      "uniqueId": "offlineuser",
+      "nickname": "Offline",
+      "roomId": "7000000000000000003",
+      "status": 4
+    },
+    "liveRoom": {
+      "status": 4,
+      "roomId": null,
+      "title": "Last title",
+      "stats": {},
+      "streamData": {
+        "pull_data": {
+          "stream_data": "{\"data\":{\"sd\":{\"main\":{\"flv\":\"https://cdn.example.com/stale.flv\"}}}}"
+        }
+      }
+    }
+  }
+}

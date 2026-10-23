@@ -76,13 +76,13 @@ the room API.
 
 ## Pages
 
-| Path | Purpose |
-| --- | --- |
-| `/` | Overview: live stats, top creators, seven-day volume, latest captures |
-| `/watch` | Add a user; manage users in Offline / Live / Recording columns |
-| `/recordings` | Archive grid with search, state filters, download, delete, Rescan |
-| `/recordings/:id` | Player, metadata, convert `.ts` to MP4, download, delete |
-| `/admin` | Capture defaults, paths, network, system status |
+| Path              | Purpose                                                               |
+| ----------------- | --------------------------------------------------------------------- |
+| `/`               | Overview: live stats, top creators, seven-day volume, latest captures |
+| `/watch`          | Add a user; manage users in Offline / Live / Recording columns        |
+| `/recordings`     | Archive grid with search, state filters, download, delete, Rescan     |
+| `/recordings/:id` | Player, metadata, convert `.ts` to MP4, download, delete              |
+| `/admin`          | Capture defaults, paths, network, system status                       |
 
 Pages are server-rendered JSX components (`src/server/views`) through `@elysia/html`; all
 formatting lives in `src/server/view.ts`, so components only print, and untrusted text goes
@@ -96,23 +96,23 @@ JSON endpoints are separate from the pages and stay stable for scripting.
 <details>
 <summary>Endpoints</summary>
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/state` | Full snapshot: monitors, recordings, settings, system |
-| `GET` | `/api/health` | Liveness and version |
-| `GET` | `/api/events` | SSE snapshot stream |
-| `POST` | `/api/probe` | Resolve `{ uniqueId \| url \| roomId }` without saving |
-| `GET/POST` | `/api/monitors` | List / add (upserts by creator) |
-| `PATCH/DELETE` | `/api/monitors/:id` | Update / remove |
-| `POST` | `/api/monitors/:id/check` | Refresh room state |
-| `POST` | `/api/monitors/:id/record` | Record now |
-| `POST` | `/api/monitors/:id/stop` | Stop the active recording |
-| `GET` | `/api/recordings` | Archive index |
-| `GET` | `/api/recordings/:id/file` | MP4 with Range support |
-| `GET` | `/api/recordings/:id/thumb` | Generated JPEG thumbnail |
-| `GET` | `/api/recordings/:id/download` | Attachment |
-| `DELETE` | `/api/recordings/:id` | Delete file and index entry |
-| `GET/PUT` | `/api/settings` | Read (cookies masked) / update |
+| Method         | Path                           | Purpose                                                |
+| -------------- | ------------------------------ | ------------------------------------------------------ |
+| `GET`          | `/api/state`                   | Full snapshot: monitors, recordings, settings, system  |
+| `GET`          | `/api/health`                  | Liveness and version                                   |
+| `GET`          | `/api/events`                  | SSE snapshot stream                                    |
+| `POST`         | `/api/probe`                   | Resolve `{ uniqueId \| url \| roomId }` without saving |
+| `GET/POST`     | `/api/monitors`                | List / add (upserts by creator)                        |
+| `PATCH/DELETE` | `/api/monitors/:id`            | Update / remove                                        |
+| `POST`         | `/api/monitors/:id/check`      | Refresh room state                                     |
+| `POST`         | `/api/monitors/:id/record`     | Record now                                             |
+| `POST`         | `/api/monitors/:id/stop`       | Stop the active recording                              |
+| `GET`          | `/api/recordings`              | Archive index                                          |
+| `GET`          | `/api/recordings/:id/file`     | MP4 with Range support                                 |
+| `GET`          | `/api/recordings/:id/thumb`    | Generated JPEG thumbnail                               |
+| `GET`          | `/api/recordings/:id/download` | Attachment                                             |
+| `DELETE`       | `/api/recordings/:id`          | Delete file and index entry                            |
+| `GET/PUT`      | `/api/settings`                | Read (cookies masked) / update                         |
 
 </details>
 
@@ -123,23 +123,23 @@ The web UI always starts. Upstream-compatible flags use a single dash.
 <details>
 <summary>Flags</summary>
 
-| Flag | Description |
-| --- | --- |
-| `-user <USER>` | Username(s), comma separated |
-| `-url <URL>` | TikTok live URL |
-| `-room_id <ID>` | TikTok room id |
-| `-automatic_interval <MIN>` | Default poll interval in minutes |
-| `-output <DIR>` | Recordings directory (default `./recordings`) |
-| `-duration <SECONDS>` | Max segment length |
-| `-proxy <URL>` | HTTP proxy for TikTok and ffmpeg |
-| `-bitrate <BITRATE>` | Re-encode bitrate, e.g. `1M` or `1000k` |
-| `-ffmpeg_path <PATH>` | ffmpeg binary |
-| `-cookies <FILE\|HEADER>` | `cookies.json` or a raw Cookie header |
-| `-variant <VARIANT>` | `best`, `hd`, `sd`, `audio` |
-| `-port <PORT>` | Web UI port (default `3000`) |
-| `-host <HOST>` | Bind address (default `127.0.0.1`) |
-| `-data_dir <DIR>` | State directory (default `./data`) |
-| `--help` | Usage |
+| Flag                        | Description                                   |
+| --------------------------- | --------------------------------------------- |
+| `-user <USER>`              | Username(s), comma separated                  |
+| `-url <URL>`                | TikTok live URL                               |
+| `-room_id <ID>`             | TikTok room id                                |
+| `-automatic_interval <MIN>` | Default poll interval in minutes              |
+| `-output <DIR>`             | Recordings directory (default `./recordings`) |
+| `-duration <SECONDS>`       | Max segment length                            |
+| `-proxy <URL>`              | HTTP proxy for TikTok and ffmpeg              |
+| `-bitrate <BITRATE>`        | Re-encode bitrate, e.g. `1M` or `1000k`       |
+| `-ffmpeg_path <PATH>`       | ffmpeg binary                                 |
+| `-cookies <FILE\|HEADER>`   | `cookies.json` or a raw Cookie header         |
+| `-variant <VARIANT>`        | `best`, `hd`, `sd`, `audio`                   |
+| `-port <PORT>`              | Web UI port (default `3000`)                  |
+| `-host <HOST>`              | Bind address (default `127.0.0.1`)            |
+| `-data_dir <DIR>`           | State directory (default `./data`)            |
+| `--help`                    | Usage                                         |
 
 `-telegram` and `-no-update-check` are accepted with a warning or ignored; Telegram upload
 is not implemented.
@@ -151,7 +151,10 @@ is not implemented.
 Paste either format into Admin or pass `-cookies`:
 
 ```json
-[{ "name": "sessionid", "value": "..." }, { "name": "ttwid", "value": "..." }]
+[
+  { "name": "sessionid", "value": "..." },
+  { "name": "ttwid", "value": "..." }
+]
 ```
 
 ```text
@@ -179,7 +182,7 @@ to `127.0.0.1` or put it behind your own proxy, and do not expose it to an untru
 
 ```bash
 bun test                 # unit/integration tests, no network
-bun run typecheck        # TypeScript 7 native tsc
+bun check                # type check (nearest tsconfig, all cores)
 bun run e2e              # real HTTP + engine + ffmpeg + disk proof
 bun run probe @creator --record 8
 bun scripts/fixture.ts -port 4100   # seeded demo data, no polling, no TikTok

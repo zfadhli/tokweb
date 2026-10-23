@@ -1,115 +1,133 @@
-import { resolve } from 'node:path'
-import { Engine } from './engine'
-import { createApp } from './server'
-import { Store } from './store'
-import { TikTokClient } from './tiktok/client'
-import type { Variant } from './core/types'
-import { VARIANTS } from './core/types'
+import { resolve } from "node:path";
+import { Engine } from "./engine";
+import { createApp } from "./server";
+import { Store } from "./store";
+import { TikTokClient } from "./tiktok/client";
+import type { Variant } from "./core/types";
+import { VARIANTS } from "./core/types";
 
 interface CliOptions {
-  user?: string
-  url?: string
-  roomId?: string
-  intervalSec?: number
-  durationSec?: number
-  output?: string
-  proxy?: string
-  bitrate?: string
-  ffmpegPath?: string
-  cookies?: string
-  dataDir?: string
-  port: number
-  host: string
-  variant?: Variant
-  help: boolean
-  telegram: boolean
+  user?: string;
+  url?: string;
+  roomId?: string;
+  intervalSec?: number;
+  durationSec?: number;
+  output?: string;
+  proxy?: string;
+  bitrate?: string;
+  ffmpegPath?: string;
+  cookies?: string;
+  dataDir?: string;
+  port: number;
+  host: string;
+  variant?: Variant;
+  help: boolean;
+  telegram: boolean;
 }
 
-const isVariant = (value: string): value is Variant => VARIANTS.some((variant) => variant === value)
+const isVariant = (value: string): value is Variant =>
+  VARIANTS.some((variant) => variant === value);
 
 function parseCli(argv: string[]): CliOptions {
-  const options: CliOptions = { port: 3000, host: '127.0.0.1', help: false, telegram: false }
+  const options: CliOptions = {
+    port: 3000,
+    host: "127.0.0.1",
+    help: false,
+    telegram: false,
+  };
   for (let index = 0; index < argv.length; index += 1) {
-    const raw = argv[index]
-    if (!raw?.startsWith('-')) continue
-    const trimmed = raw.replace(/^--?/, '')
-    const [name, inline] = trimmed.split('=', 2)
-    if (!name) continue
+    const raw = argv[index];
+    if (!raw?.startsWith("-")) continue;
+    const trimmed = raw.replace(/^--?/, "");
+    const [name, inline] = trimmed.split("=", 2);
+    if (!name) continue;
 
-    const boolean = ['help', 'h', 'telegram', 'no-update-check', 'version'].includes(name)
-    const value = inline ?? argv[index + 1]
-    if (!boolean && (value === undefined || (inline === undefined && value.startsWith('-')))) {
-      throw new Error(`Flag -${name} needs a value.`)
+    const boolean = [
+      "help",
+      "h",
+      "telegram",
+      "no-update-check",
+      "version",
+    ].includes(name);
+    const value = inline ?? argv[index + 1];
+    if (
+      !boolean &&
+      (value === undefined || (inline === undefined && value.startsWith("-")))
+    ) {
+      throw new Error(`Flag -${name} needs a value.`);
     }
-    if (!boolean && inline === undefined) index += 1
+    if (!boolean && inline === undefined) index += 1;
 
     switch (name) {
-      case 'help':
-      case 'h':
-      case 'version':
-        options.help = true
-        break
-      case 'telegram':
-        options.telegram = true
-        break
-      case 'no-update-check':
-        break
-      case 'user':
-      case 'u':
-        options.user = value
-        break
-      case 'url':
-        options.url = value
-        break
-      case 'room_id':
-      case 'roomId':
-        options.roomId = value
-        break
-      case 'automatic_interval':
-      case 'interval':
-        options.intervalSec = Number(value)
-        break
-      case 'duration':
-        options.durationSec = Number(value)
-        break
-      case 'output':
-        options.output = value
-        break
-      case 'proxy':
-        options.proxy = value
-        break
-      case 'bitrate':
-        options.bitrate = value
-        break
-      case 'ffmpeg_path':
-      case 'ffmpeg':
-        options.ffmpegPath = value
-        break
-      case 'cookies':
-        options.cookies = value
-        break
-      case 'data_dir':
-        options.dataDir = value
-        break
-      case 'port':
-        options.port = Number(value)
-        break
-      case 'host':
-        options.host = value ?? options.host
-        break
-      case 'variant': {
-        const variantValue = value ?? ''
-        if (!isVariant(variantValue)) throw new Error(`Unknown variant "${value}". Use best, hd, sd, or audio.`)
-        options.variant = variantValue
-        break
+      case "help":
+      case "h":
+      case "version":
+        options.help = true;
+        break;
+      case "telegram":
+        options.telegram = true;
+        break;
+      case "no-update-check":
+        break;
+      case "user":
+      case "u":
+        options.user = value;
+        break;
+      case "url":
+        options.url = value;
+        break;
+      case "room_id":
+      case "roomId":
+        options.roomId = value;
+        break;
+      case "automatic_interval":
+      case "interval":
+        options.intervalSec = Number(value);
+        break;
+      case "duration":
+        options.durationSec = Number(value);
+        break;
+      case "output":
+        options.output = value;
+        break;
+      case "proxy":
+        options.proxy = value;
+        break;
+      case "bitrate":
+        options.bitrate = value;
+        break;
+      case "ffmpeg_path":
+      case "ffmpeg":
+        options.ffmpegPath = value;
+        break;
+      case "cookies":
+        options.cookies = value;
+        break;
+      case "data_dir":
+        options.dataDir = value;
+        break;
+      case "port":
+        options.port = Number(value);
+        break;
+      case "host":
+        options.host = value ?? options.host;
+        break;
+      case "variant": {
+        const variantValue = value ?? "";
+        if (!isVariant(variantValue))
+          throw new Error(
+            `Unknown variant "${value}". Use best, hd, sd, or audio.`,
+          );
+        options.variant = variantValue;
+        break;
       }
       default:
-        console.warn(`tokweb: ignoring unknown flag -${name}`)
+        console.warn(`tokweb: ignoring unknown flag -${name}`);
     }
   }
 
-  if (!Number.isFinite(options.port) || options.port <= 0) options.port = 3000
-  return options
+  if (!Number.isFinite(options.port) || options.port <= 0) options.port = 3000;
+  return options;
 }
 
 const HELP = `tokweb — TikTok Live Recorder web UI
@@ -135,104 +153,142 @@ Web flags:
   -data_dir <DIR>           State directory (default ./data)
   --help                    Show this help
 
-Upstream's -telegram is not implemented; recordings stay on disk.`
+Upstream's -telegram is not implemented; recordings stay on disk.`;
 
-function numberOrUndefined(value: number | undefined, min: number, max: number): number | undefined {
-  if (value === undefined || !Number.isFinite(value)) return undefined
-  return Math.min(max, Math.max(min, Math.round(value)))
+function numberOrUndefined(
+  value: number | undefined,
+  min: number,
+  max: number,
+): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return Math.min(max, Math.max(min, Math.round(value)));
 }
 
 async function readCookies(value: string | undefined): Promise<string> {
-  if (!value) return ''
-  const file = Bun.file(resolve(process.cwd(), value))
+  if (!value) return "";
+  const file = Bun.file(resolve(process.cwd(), value));
   if (await file.exists()) {
     try {
-      return await file.text()
+      return await file.text();
     } catch {
       // Treat it as a raw header below.
     }
   }
-  return value
+  return value;
 }
 
 async function main(): Promise<void> {
-  const options = parseCli(process.argv.slice(2))
+  const options = parseCli(process.argv.slice(2));
   if (options.help) {
-    console.log(HELP)
-    return
+    console.log(HELP);
+    return;
   }
-  if (options.telegram) console.warn('tokweb: -telegram is not implemented; the recording stays on disk.')
+  if (options.telegram)
+    console.warn(
+      "tokweb: -telegram is not implemented; the recording stays on disk.",
+    );
 
-  const store = new Store({ dataDir: options.dataDir, outputDir: options.output }).load()
-  if (options.output) store.state.settings.outputDir = resolve(process.cwd(), options.output)
-  if (options.ffmpegPath) store.state.settings.ffmpegPath = options.ffmpegPath
-  if (options.proxy) store.state.settings.proxy = options.proxy
-  if (options.bitrate) store.state.settings.bitrate = options.bitrate
-  if (options.intervalSec) store.state.settings.defaultIntervalSec = Math.max(10, Math.round(options.intervalSec * 60))
-  if (options.cookies) store.state.settings.cookies = await readCookies(options.cookies)
-  store.save()
+  const store = new Store({
+    dataDir: options.dataDir,
+    outputDir: options.output,
+  }).load();
+  if (options.output)
+    store.state.settings.outputDir = resolve(process.cwd(), options.output);
+  if (options.ffmpegPath) store.state.settings.ffmpegPath = options.ffmpegPath;
+  if (options.proxy) store.state.settings.proxy = options.proxy;
+  if (options.bitrate) store.state.settings.bitrate = options.bitrate;
+  if (options.intervalSec)
+    store.state.settings.defaultIntervalSec = Math.max(
+      10,
+      Math.round(options.intervalSec * 60),
+    );
+  if (options.cookies)
+    store.state.settings.cookies = await readCookies(options.cookies);
+  store.save();
 
   const client = new TikTokClient({
     cookies: store.state.settings.cookies,
     proxy: store.state.settings.proxy,
     userAgent: store.state.settings.userAgent,
-  })
-  const engine = new Engine(store, client)
-  engine.start()
-  const app = createApp({ store, engine, client })
+  });
+  const engine = new Engine(store, client);
+  engine.start();
+  const app = createApp({ store, engine, client });
 
   try {
-    app.listen({ port: options.port, hostname: options.host })
+    app.listen({ port: options.port, hostname: options.host });
   } catch (error) {
-    engine.stop().catch(() => undefined)
-    throw new Error(`Could not listen on ${options.host}:${options.port}: ${error instanceof Error ? error.message : String(error)}`)
+    engine.stop().catch(() => undefined);
+    throw new Error(
+      `Could not listen on ${options.host}:${options.port}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
-  const shownHost = options.host === '0.0.0.0' || options.host === '::' ? 'localhost' : options.host
-  if (options.host !== '127.0.0.1' && options.host !== 'localhost' && options.host !== '::1') {
-    console.warn('tokweb: dashboard is reachable beyond loopback and has no authentication. Use -host 127.0.0.1 unless you trust the network.')
+  const shownHost =
+    options.host === "0.0.0.0" || options.host === "::"
+      ? "localhost"
+      : options.host;
+  if (
+    options.host !== "127.0.0.1" &&
+    options.host !== "localhost" &&
+    options.host !== "::1"
+  ) {
+    console.warn(
+      "tokweb: dashboard is reachable beyond loopback and has no authentication. Use -host 127.0.0.1 unless you trust the network.",
+    );
   }
-  console.log(`tokweb listening on http://${shownHost}:${options.port}`)
-  console.log(`recordings: ${store.state.settings.outputDir}`)
+  console.log(`tokweb listening on http://${shownHost}:${options.port}`);
+  console.log(`recordings: ${store.state.settings.outputDir}`);
 
-  const seeds: Array<{ uniqueId?: string; url?: string; roomId?: string }> = []
-  for (const user of options.user?.split(',').map((item) => item.trim()).filter(Boolean) ?? []) {
-    seeds.push({ uniqueId: user })
+  const seeds: Array<{ uniqueId?: string; url?: string; roomId?: string }> = [];
+  for (const user of options.user
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean) ?? []) {
+    seeds.push({ uniqueId: user });
   }
-  if (options.url) seeds.push({ url: options.url })
-  if (options.roomId) seeds.push({ roomId: options.roomId })
+  if (options.url) seeds.push({ url: options.url });
+  if (options.roomId) seeds.push({ roomId: options.roomId });
 
   for (const seed of seeds) {
     try {
       const monitor = await engine.addMonitor({
         ...seed,
         variant: options.variant,
-        intervalSec: numberOrUndefined(options.intervalSec ? options.intervalSec * 60 : undefined, 10, 86_400),
+        intervalSec: numberOrUndefined(
+          options.intervalSec ? options.intervalSec * 60 : undefined,
+          10,
+          86_400,
+        ),
         maxDurationSec: options.durationSec
           ? numberOrUndefined(options.durationSec, 5, 86_400)
           : undefined,
-      })
-      console.log(`monitor ready: @${monitor.uniqueId ?? monitor.roomId}`)
+      });
+      console.log(`monitor ready: @${monitor.uniqueId ?? monitor.roomId}`);
     } catch (error) {
-      console.error(`monitor failed: ${error instanceof Error ? error.message : String(error)}`)
+      console.error(
+        `monitor failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
-  let closing = false
+  let closing = false;
   const shutdown = async (): Promise<void> => {
-    if (closing) process.exit(130)
-    closing = true
-    console.log('\nstopping recordings...')
-    await engine.stop()
+    if (closing) process.exit(130);
+    closing = true;
+    console.log("\nstopping recordings...");
+    await engine.stop();
     // true closes in-flight connections; without it the dashboard SSE stream
     // keeps app.stop() pending forever and the process never exits.
-    await app.stop(true)
-    process.exit(0)
-  }
-  process.on('SIGINT', () => void shutdown())
-  process.on('SIGTERM', () => void shutdown())
+    await app.stop(true);
+    process.exit(0);
+  };
+  process.on("SIGINT", () => void shutdown());
+  process.on("SIGTERM", () => void shutdown());
 }
 
 main().catch((error: unknown) => {
-  console.error(`tokweb: ${error instanceof Error ? error.message : String(error)}`)
-  process.exit(1)
-})
+  console.error(
+    `tokweb: ${error instanceof Error ? error.message : String(error)}`,
+  );
+  process.exit(1);
+});

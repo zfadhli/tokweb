@@ -1,4 +1,4 @@
-import { esc } from '../../view'
+import { esc } from "../../view";
 
 export function Empty(props: { title: string; hint?: string | null }) {
   return (
@@ -6,5 +6,5 @@ export function Empty(props: { title: string; hint?: string | null }) {
       <strong>{esc(props.title)}</strong>
       {props.hint ? <p>{esc(props.hint)}</p> : null}
     </div>
-  )
+  );
 }

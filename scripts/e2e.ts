@@ -4,266 +4,325 @@
  *
  * Run: bun scripts/e2e.ts
  */
-import { strict as assert } from 'node:assert'
-import { join } from 'node:path'
-import { spawn } from 'bun'
-import { Engine } from '../src/engine'
-import { createApp } from '../src/server'
-import { Store } from '../src/store'
-import { TikTokClient } from '../src/tiktok/client'
-import type { LiveRoom } from '../src/core/types'
-import { FakeResolver, tempDir } from '../tests/helpers'
+import { strict as assert } from "node:assert";
+import { join } from "node:path";
+import { spawn } from "bun";
+import { Engine } from "../src/engine";
+import { createApp } from "../src/server";
+import { Store } from "../src/store";
+import { TikTokClient } from "../src/tiktok/client";
+import type { LiveRoom } from "../src/core/types";
+import { FakeResolver, tempDir } from "../tests/helpers";
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 async function makeSample(dir: string): Promise<string> {
-  const path = join(dir, 'sample.flv')
+  const path = join(dir, "sample.flv");
   const child = spawn({
     cmd: [
-      'ffmpeg',
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-y',
-      '-f',
-      'lavfi',
-      '-i',
-      'testsrc2=size=640x360:rate=24',
-      '-f',
-      'lavfi',
-      '-i',
-      'sine=frequency=523:sample_rate=44100',
-      '-t',
-      '4',
-      '-c:v',
-      'libx264',
-      '-preset',
-      'ultrafast',
-      '-pix_fmt',
-      'yuv420p',
-      '-c:a',
-      'aac',
-      '-f',
-      'flv',
+      "ffmpeg",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=640x360:rate=24",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=523:sample_rate=44100",
+      "-t",
+      "4",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "-f",
+      "flv",
       path,
     ],
-    stdout: 'ignore',
-    stderr: 'pipe',
-  })
-  if ((await child.exited) !== 0) throw new Error(`ffmpeg sample failed: ${await new Response(child.stderr).text()}`)
-  return path
+    stdout: "ignore",
+    stderr: "pipe",
+  });
+  if ((await child.exited) !== 0)
+    throw new Error(
+      `ffmpeg sample failed: ${await new Response(child.stderr).text()}`,
+    );
+  return path;
 }
 
-async function waitFor<T>(label: string, read: () => Promise<T | null> | T | null, timeoutMs = 25_000): Promise<T> {
-  const started = Date.now()
+async function waitFor<T>(
+  label: string,
+  read: () => Promise<T | null> | T | null,
+  timeoutMs = 25_000,
+): Promise<T> {
+  const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const value = await read()
-    if (value) return value
-    await sleep(150)
+    const value = await read();
+    if (value) return value;
+    await sleep(150);
   }
-  throw new Error(`timeout waiting for ${label}`)
+  throw new Error(`timeout waiting for ${label}`);
 }
 
 async function inProcess(): Promise<void> {
-  const dir = tempDir('tokweb-e2e-')
-  const sample = await makeSample(dir)
-  const store = new Store({ dataDir: join(dir, 'data'), outputDir: join(dir, 'out') }).load()
-  store.state.settings.keepSource = false
-  store.save()
+  const dir = tempDir("tokweb-e2e-");
+  const sample = await makeSample(dir);
+  const store = new Store({
+    dataDir: join(dir, "data"),
+    outputDir: join(dir, "out"),
+  }).load();
+  store.state.settings.keepSource = false;
+  store.save();
   const room: LiveRoom = {
-    status: 'live',
-    uniqueId: 'fixturecreator',
-    nickname: 'Fixture Creator',
+    status: "live",
+    uniqueId: "fixturecreator",
+    nickname: "Fixture Creator",
     avatarUrl: null,
-    roomId: '7123456789012345678',
-    title: 'E2E fixture stream',
+    roomId: "7123456789012345678",
+    title: "E2E fixture stream",
     viewers: 42,
-    streams: [{ url: sample, format: 'flv', quality: 'HD' }],
-  }
-  const resolver = new FakeResolver(room)
-  const engine = new Engine(store, resolver)
-  engine.start()
-  const client = new TikTokClient({ retries: 1 })
-  const app = createApp({ store, engine, client })
+    streams: [{ url: sample, format: "flv", quality: "HD" }],
+  };
+  const resolver = new FakeResolver(room);
+  const engine = new Engine(store, resolver);
+  engine.start();
+  const client = new TikTokClient({ retries: 1 });
+  const app = createApp({ store, engine, client });
 
   const post = (path: string, body?: unknown): Promise<Response> =>
     app.handle(
       new Request(`http://tokweb.test${path}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
-    )
+    );
 
-  const ui = await app.handle(new Request('http://tokweb.test/'))
-  assert.equal(ui.status, 200)
-  const home = await ui.text()
-  assert.match(home, /tokweb/i)
-  assert.match(home, /Archive at a glance/)
-  assert.match(home, /href="\/watch"/)
-  console.log('✓ GET / serves the overview page')
+  const ui = await app.handle(new Request("http://tokweb.test/"));
+  assert.equal(ui.status, 200);
+  const home = await ui.text();
+  assert.match(home, /tokweb/i);
+  assert.match(home, /Archive at a glance/);
+  assert.match(home, /href="\/watch"/);
+  console.log("✓ GET / serves the overview page");
 
   const pages: Array<[string, RegExp]> = [
-    ['/watch', /Add user/],
-    ['/recordings', /Search handle or title/],
-    ['/admin', /Save settings/],
-  ]
+    ["/watch", /Add user/],
+    ["/recordings", /Search handle or title/],
+    ["/admin", /Save settings/],
+  ];
   for (const [path, marker] of pages) {
-    const page = await app.handle(new Request(`http://tokweb.test${path}`))
-    assert.equal(page.status, 200, `${path} status`)
-    assert.match(await page.text(), marker)
+    const page = await app.handle(new Request(`http://tokweb.test${path}`));
+    assert.equal(page.status, 200, `${path} status`);
+    assert.match(await page.text(), marker);
   }
-  console.log('✓ watch, recordings, and admin pages render')
+  console.log("✓ watch, recordings, and admin pages render");
 
-  const asset = await app.handle(new Request('http://tokweb.test/assets/app.js'))
-  assert.equal(asset.status, 200)
-  assert.ok((await asset.text()).includes('alpine:init'))
-  const css = await app.handle(new Request('http://tokweb.test/assets/app.css'))
-  assert.equal(css.status, 200)
-  assert.ok((await css.text()).includes('.sidebar'))
-  const htmx = await app.handle(new Request('http://tokweb.test/vendor/htmx.js'))
-  assert.equal(htmx.status, 200)
-  console.log('✓ static assets and vendored htmx served')
+  const asset = await app.handle(
+    new Request("http://tokweb.test/assets/app.js"),
+  );
+  assert.equal(asset.status, 200);
+  assert.ok((await asset.text()).includes("alpine:init"));
+  const css = await app.handle(
+    new Request("http://tokweb.test/assets/app.css"),
+  );
+  assert.equal(css.status, 200);
+  assert.ok((await css.text()).includes(".sidebar"));
+  const htmx = await app.handle(
+    new Request("http://tokweb.test/vendor/htmx.js"),
+  );
+  assert.equal(htmx.status, 200);
+  console.log("✓ static assets and vendored htmx served");
 
-  const created = await post('/api/monitors', {
-    uniqueId: 'fixturecreator',
-    variant: 'best',
+  const created = await post("/api/monitors", {
+    uniqueId: "fixturecreator",
+    variant: "best",
     intervalSec: 10,
     autoRecord: true,
-  })
-  assert.equal(created.status, 201)
-  const monitor = (await created.json()) as { id: string }
-  console.log('✓ POST /api/monitors created a monitor')
+  });
+  assert.equal(created.status, 201);
+  const monitor = (await created.json()) as { id: string };
+  console.log("✓ POST /api/monitors created a monitor");
 
-  const recording = await waitFor('recording to finish', async () => {
-    const response = await app.handle(new Request('http://tokweb.test/api/state'))
+  const recording = await waitFor("recording to finish", async () => {
+    const response = await app.handle(
+      new Request("http://tokweb.test/api/state"),
+    );
     const snapshot = (await response.json()) as {
-      recordings: Array<{ id: string; state: string; file: string | null; bytes: number; durationMs: number }>
-    }
+      recordings: Array<{
+        id: string;
+        state: string;
+        file: string | null;
+        bytes: number;
+        durationMs: number;
+      }>;
+    };
     for (const item of snapshot.recordings) {
-      if (item.state === 'completed') return item
-      if (item.state === 'failed') throw new Error(`recording failed: ${JSON.stringify(item)}`)
+      if (item.state === "completed") return item;
+      if (item.state === "failed")
+        throw new Error(`recording failed: ${JSON.stringify(item)}`);
     }
-    return null
-  })
-  assert.ok(recording.id)
-  assert.ok(recording.file?.endsWith('.mp4'))
-  assert.ok(recording.bytes > 1000)
-  const fileName = recording.file
-  assert.ok(fileName)
-  const filePath = join(store.state.settings.outputDir, fileName)
-  assert.ok(await Bun.file(filePath).exists())
-  assert.ok(Bun.file(filePath).size > 1000)
-  assert.equal(await Bun.file(filePath.replace(/\.mp4$/, '.ts')).exists(), false)
-  console.log(`✓ ffmpeg captured ${recording.file} (${recording.bytes} bytes)`)
+    return null;
+  });
+  assert.ok(recording.id);
+  assert.ok(recording.file?.endsWith(".mp4"));
+  assert.ok(recording.bytes > 1000);
+  const fileName = recording.file;
+  assert.ok(fileName);
+  const filePath = join(store.state.settings.outputDir, fileName);
+  assert.ok(await Bun.file(filePath).exists());
+  assert.ok(Bun.file(filePath).size > 1000);
+  assert.equal(
+    await Bun.file(filePath.replace(/\.mp4$/, ".ts")).exists(),
+    false,
+  );
+  console.log(`✓ ffmpeg captured ${recording.file} (${recording.bytes} bytes)`);
 
-  const archive = await app.handle(new Request('http://tokweb.test/recordings'))
-  assert.equal(archive.status, 200)
-  const archiveHtml = await archive.text()
-  assert.ok(archiveHtml.includes('@fixturecreator'))
-  assert.ok(archiveHtml.includes(`/recordings/${recording.id}`))
-  const player = await app.handle(new Request(`http://tokweb.test/recordings/${recording.id}`))
-  assert.equal(player.status, 200)
-  assert.ok((await player.text()).includes(`/api/recordings/${recording.id}/file`))
-  console.log('✓ archive lists the capture and the player embeds it')
+  const archive = await app.handle(
+    new Request("http://tokweb.test/recordings"),
+  );
+  assert.equal(archive.status, 200);
+  const archiveHtml = await archive.text();
+  assert.ok(archiveHtml.includes("@fixturecreator"));
+  assert.ok(archiveHtml.includes(`/recordings/${recording.id}`));
+  const player = await app.handle(
+    new Request(`http://tokweb.test/recordings/${recording.id}`),
+  );
+  assert.equal(player.status, 200);
+  assert.ok(
+    (await player.text()).includes(`/api/recordings/${recording.id}/file`),
+  );
+  console.log("✓ archive lists the capture and the player embeds it");
 
   const added = await app.handle(
-    new Request('http://tokweb.test/watch', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: 'target=%40secondcreator',
+    new Request("http://tokweb.test/watch", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "target=%40secondcreator",
     }),
-  )
-  assert.equal(added.status, 200)
-  assert.ok((await added.text()).includes('@secondcreator'))
-  assert.ok(store.state.monitors.some((item) => item.uniqueId === 'secondcreator'))
-  console.log('✓ HTML add-user form parses a username and creates a monitor')
+  );
+  assert.equal(added.status, 200);
+  assert.ok((await added.text()).includes("@secondcreator"));
+  assert.ok(
+    store.state.monitors.some((item) => item.uniqueId === "secondcreator"),
+  );
+  console.log("✓ HTML add-user form parses a username and creates a monitor");
 
   const ranged = await app.handle(
     new Request(`http://tokweb.test/api/recordings/${recording.id}/file`, {
-      headers: { range: 'bytes=0-99' },
+      headers: { range: "bytes=0-99" },
     }),
-  )
-  assert.equal(ranged.status, 206)
-  assert.match(ranged.headers.get('content-range') ?? '', /^bytes 0-99\/\d+/)
-  assert.equal((await ranged.arrayBuffer()).byteLength, 100)
-  console.log('✓ range playback endpoint returns 206 with 100 bytes')
+  );
+  assert.equal(ranged.status, 206);
+  assert.match(ranged.headers.get("content-range") ?? "", /^bytes 0-99\/\d+/);
+  assert.equal((await ranged.arrayBuffer()).byteLength, 100);
+  console.log("✓ range playback endpoint returns 206 with 100 bytes");
 
-  const stateResponse = await app.handle(new Request('http://tokweb.test/api/state'))
+  const stateResponse = await app.handle(
+    new Request("http://tokweb.test/api/state"),
+  );
   const state = (await stateResponse.json()) as {
-    outputs?: unknown
-    settings: Record<string, unknown>
-    system: { activeRecordings: number }
-    monitors: Array<{ id: string; state: string }>
-  }
-  assert.equal(state.system.activeRecordings, 0)
-  assert.equal(state.monitors[0]?.id, monitor.id)
-  assert.equal('cookies' in state.settings, false)
-  console.log('✓ snapshot is idle, monitor retained, cookies masked')
+    outputs?: unknown;
+    settings: Record<string, unknown>;
+    system: { activeRecordings: number };
+    monitors: Array<{ id: string; state: string }>;
+  };
+  assert.equal(state.system.activeRecordings, 0);
+  assert.equal(state.monitors[0]?.id, monitor.id);
+  assert.equal("cookies" in state.settings, false);
+  console.log("✓ snapshot is idle, monitor retained, cookies masked");
 
   const removed = await app.handle(
-    new Request(`http://tokweb.test/api/recordings/${recording.id}`, { method: 'DELETE' }),
-  )
-  assert.equal(removed.status, 200)
-  assert.equal(await Bun.file(filePath).exists(), false)
-  console.log('✓ DELETE removes the index entry and the file')
+    new Request(`http://tokweb.test/api/recordings/${recording.id}`, {
+      method: "DELETE",
+    }),
+  );
+  assert.equal(removed.status, 200);
+  assert.equal(await Bun.file(filePath).exists(), false);
+  console.log("✓ DELETE removes the index entry and the file");
 
-  await engine.stop()
+  await engine.stop();
 }
 
 async function spawnedServer(): Promise<void> {
-  const dir = tempDir('tokweb-spawn-')
-  const port = 35_000 + Math.floor(Math.random() * 10_000)
+  const dir = tempDir("tokweb-spawn-");
+  const port = 35_000 + Math.floor(Math.random() * 10_000);
   const child = spawn({
-    cmd: ['bun', 'src/index.ts', '-port', String(port), '-data_dir', join(dir, 'data'), '-output', join(dir, 'out')],
-    cwd: join(import.meta.dir, '..'),
-    env: { ...process.env, TOKWEB_DATA: join(dir, 'data') },
-    stdout: 'pipe',
-    stderr: 'pipe',
-  })
+    cmd: [
+      "bun",
+      "src/index.ts",
+      "-port",
+      String(port),
+      "-data_dir",
+      join(dir, "data"),
+      "-output",
+      join(dir, "out"),
+    ],
+    cwd: join(import.meta.dir, ".."),
+    env: { ...process.env, TOKWEB_DATA: join(dir, "data") },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
 
-  const base = `http://127.0.0.1:${port}`
+  const base = `http://127.0.0.1:${port}`;
   try {
     await waitFor(
-      'server boot',
+      "server boot",
       async () => {
         try {
-          const response = await fetch(`${base}/api/health`)
-          return response.ok ? true : null
+          const response = await fetch(`${base}/api/health`);
+          return response.ok ? true : null;
         } catch {
-          return null
+          return null;
         }
       },
       15_000,
-    )
-    const page = await fetch(`${base}/`)
-    assert.equal(page.status, 200)
-    assert.match(await page.text(), /Archive at a glance/)
-    const state = await fetch(`${base}/api/state`)
-    assert.equal(state.status, 200)
-    const body = (await state.json()) as { system: { bun: string } }
-    assert.ok(body.system.bun.length > 0)
-    console.log(`✓ spawned CLI server booted on :${port} and served the UI`)
+    );
+    const page = await fetch(`${base}/`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /Archive at a glance/);
+    const state = await fetch(`${base}/api/state`);
+    assert.equal(state.status, 200);
+    const body = (await state.json()) as { system: { bun: string } };
+    assert.ok(body.system.bun.length > 0);
+    console.log(`✓ spawned CLI server booted on :${port} and served the UI`);
 
-    const events = await fetch(`${base}/api/events`)
-    assert.equal(events.status, 200)
-    const reader = events.body?.getReader()
-    assert.ok(reader)
-    await reader.read()
-    child.kill('SIGINT')
-    const stopped = await Promise.race([child.exited.then(() => true), sleep(8_000).then(() => false)])
-    await reader.cancel().catch(() => undefined)
-    assert.equal(stopped, true, 'server must exit on SIGINT while a dashboard stream is open')
-    console.log('✓ spawned CLI server exits on SIGINT with a dashboard stream open')
+    const events = await fetch(`${base}/api/events`);
+    assert.equal(events.status, 200);
+    const reader = events.body?.getReader();
+    assert.ok(reader);
+    await reader.read();
+    child.kill("SIGINT");
+    const stopped = await Promise.race([
+      child.exited.then(() => true),
+      sleep(8_000).then(() => false),
+    ]);
+    await reader.cancel().catch(() => undefined);
+    assert.equal(
+      stopped,
+      true,
+      "server must exit on SIGINT while a dashboard stream is open",
+    );
+    console.log(
+      "✓ spawned CLI server exits on SIGINT with a dashboard stream open",
+    );
   } finally {
-    child.kill('SIGINT')
-    const timeout = setTimeout(() => child.kill('SIGKILL'), 5_000)
-    await child.exited
-    clearTimeout(timeout)
+    child.kill("SIGINT");
+    const timeout = setTimeout(() => child.kill("SIGKILL"), 5_000);
+    await child.exited;
+    clearTimeout(timeout);
   }
 }
 
-console.log('tokweb end-to-end proof')
-await inProcess()
-await spawnedServer()
-console.log('E2E VERIFIED')
+console.log("tokweb end-to-end proof");
+await inProcess();
+await spawnedServer();
+console.log("E2E VERIFIED");

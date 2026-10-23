@@ -1,66 +1,74 @@
-import { esc } from '../view'
-import { Layout, type PageChrome } from './layout'
-import { Empty } from './partials/empty'
-import { SettingsForm } from './partials/settings-form'
+import { esc } from "../view";
+import { Layout, type PageChrome } from "./layout";
+import { Empty } from "./partials/empty";
+import { SettingsForm } from "./partials/settings-form";
 
 export interface VariantOption {
-  value: string
-  label: string
-  selected: boolean
+  value: string;
+  label: string;
+  selected: boolean;
 }
 
 export interface SettingsView {
-  outputDir: string
-  ffmpegPath: string
-  proxy: string
-  userAgent: string
-  bitrate: string
-  keepSource: boolean
-  hasCookies: boolean
-  variants: VariantOption[]
+  outputDir: string;
+  ffmpegPath: string;
+  proxy: string;
+  userAgent: string;
+  bitrate: string;
+  keepSource: boolean;
+  hasCookies: boolean;
+  variants: VariantOption[];
 }
 
 export interface AdminMinutes {
-  interval: number
-  maxDuration: string
+  interval: number;
+  maxDuration: string;
 }
 
 export interface AdminSystemItem {
-  label: string
-  value: string
+  label: string;
+  value: string;
 }
 
 export interface AdminStorageRow {
-  handle: string
-  files: number
-  bytes: string
-  duration: string
-  pct: number
+  handle: string;
+  files: number;
+  bytes: string;
+  duration: string;
+  pct: number;
 }
 
 export interface AdminView {
-  notice: string | null
-  settings: SettingsView
-  minutes: AdminMinutes
-  system: { items: AdminSystemItem[] }
-  storage: AdminStorageRow[]
+  notice: string | null;
+  settings: SettingsView;
+  minutes: AdminMinutes;
+  system: { items: AdminSystemItem[] };
+  storage: AdminStorageRow[];
 }
 
-export function Admin(props: { chrome: PageChrome; data: AdminView }): JSX.Element {
-  const data = props.data
+export function Admin(props: {
+  chrome: PageChrome;
+  data: AdminView;
+}): JSX.Element {
+  const data = props.data;
   return (
     <Layout {...props.chrome}>
       <header class="page-head">
         <div>
           <p class="eyebrow">Admin</p>
           <h1>Settings</h1>
-          <p class="page-sub">Capture defaults, paths, network, and what this machine is doing right now.</p>
+          <p class="page-sub">
+            Capture defaults, paths, network, and what this machine is doing
+            right now.
+          </p>
         </div>
       </header>
 
       <div class="admin-page">
         <div class="split">
-          <div><SettingsForm data={data} /></div>
+          <div>
+            <SettingsForm data={data} />
+          </div>
           <div class="stack">
             <section class="panel" aria-label="System">
               <div class="panel-head">
@@ -78,7 +86,9 @@ export function Admin(props: { chrome: PageChrome; data: AdminView }): JSX.Eleme
                     </div>
                   ))}
                 </dl>
-                <p class="hint admin-note">State file: data/state.json, plaintext, local only.</p>
+                <p class="hint admin-note">
+                  State file: data/state.json, plaintext, local only.
+                </p>
               </div>
             </section>
           </div>
@@ -99,19 +109,31 @@ export function Admin(props: { chrome: PageChrome; data: AdminView }): JSX.Eleme
                   <thead>
                     <tr>
                       <th scope="col">Handle</th>
-                      <th scope="col" class="align-right">Files</th>
-                      <th scope="col" class="align-right">Size</th>
+                      <th scope="col" class="align-right">
+                        Files
+                      </th>
+                      <th scope="col" class="align-right">
+                        Size
+                      </th>
                       <th scope="col">Share</th>
-                      <th scope="col" class="align-right">Duration</th>
+                      <th scope="col" class="align-right">
+                        Duration
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.storage.map((row) => (
                       <tr>
-                        <td><strong>@{esc(row.handle)}</strong></td>
+                        <td>
+                          <strong>@{esc(row.handle)}</strong>
+                        </td>
                         <td class="num">{row.files}</td>
                         <td class="num">{esc(row.bytes)}</td>
-                        <td><span class="storage-bar"><span style={`width: ${row.pct}%`}></span></span></td>
+                        <td>
+                          <span class="storage-bar">
+                            <span style={`width: ${row.pct}%`}></span>
+                          </span>
+                        </td>
                         <td class="num">{esc(row.duration)}</td>
                       </tr>
                     ))}
@@ -119,11 +141,14 @@ export function Admin(props: { chrome: PageChrome; data: AdminView }): JSX.Eleme
                 </table>
               </div>
             ) : (
-              <Empty title="No stored footage yet." hint="Finished captures group here by handle." />
+              <Empty
+                title="No stored footage yet."
+                hint="Finished captures group here by handle."
+              />
             )}
           </div>
         </section>
       </div>
     </Layout>
-  )
+  );
 }
