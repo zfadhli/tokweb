@@ -26,6 +26,10 @@ document.body.addEventListener('toast', (event) => {
 })
 
 document.body.addEventListener('htmx:response:error', (event) => {
-  const status = event.detail?.xhr?.status ?? event.detail?.status ?? 'error'
-  Alpine.store('toasts').push({ level: 'error', message: `Request failed (${status})` })
+  const status = event.detail?.ctx?.response?.status
+  Alpine.store('toasts').push({ level: 'error', message: status ? `Request failed (${status})` : 'Request failed' })
+})
+
+document.body.addEventListener('htmx:error', () => {
+  Alpine.store('toasts').push({ level: 'error', message: 'Network error. Is the server still running?' })
 })
