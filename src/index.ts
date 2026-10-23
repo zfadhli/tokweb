@@ -235,11 +235,13 @@ async function main(): Promise<void> {
 
   let closing = false
   const shutdown = async (): Promise<void> => {
-    if (closing) return
+    if (closing) process.exit(130)
     closing = true
     console.log('\nstopping recordings...')
     await engine.stop()
-    await app.stop()
+    // true closes in-flight connections; without it the dashboard SSE stream
+    // keeps app.stop() pending forever and the process never exits.
+    await app.stop(true)
     process.exit(0)
   }
   process.on('SIGINT', () => void shutdown())
