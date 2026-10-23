@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { Engine, type EngineOptions } from "../src/engine";
 import { Store } from "../src/store";
+import { TikTokError } from "../src/tiktok/client";
 import {
   FakeResolver,
   fakeRecorderFactory,
@@ -215,5 +216,96 @@ describe("Engine boot stagger", () => {
 
     expect(resolver.callTimes.length).toBe(before + 1);
     await engine.stop();
+  });
+});
+
+describe("Engine blocked backoff", () => {
+  test("blocked ticks back off exponentially", async () => {
+    const { resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 10,
+      blockBackoffBaseMs: 100,
+      blockBackoffMaxMs: 400,
+    });
+    resolver.error = new TikTokError(
+      "TikTok served a browser challenge",
+      "blocked",
+    );
+    engine.start();
+    try {
+      await engine.addMonitor({ uniqueId: "blocked-user", intervalSec: 10 });
+      await sleep(60);
+      expect(resolver.calls).toBe(1);
+      const deadline = Date.now() + 500;
+      while (resolver.calls < 2 && Date.now() < deadline) await sleep(20);
+      expect(resolver.calls).toBeGreaterThanOrEqual(2);
+      const firstGap = resolver.callTimes[1]! - resolver.callTimes[0]!;
+      console.log("blocked backoff first gap ms:", firstGap);
+      expect(firstGap).toBeGreaterThanOrEqual(60);
+      expect(firstGap).toBeLessThan(300);
+      const seen = resolver.calls;
+      await sleep(150);
+      expect(resolver.calls).toBe(seen);
+      const deadline2 = Date.now() + 600;
+      while (resolver.calls < seen + 1 && Date.now() < deadline2)
+        await sleep(20);
+      expect(resolver.calls).toBeGreaterThanOrEqual(seen + 1);
+      const secondGap =
+        resolver.callTimes[seen]! - resolver.callTimes[seen - 1]!;
+      console.log("blocked backoff second gap ms:", secondGap);
+      expect(secondGap).toBeGreaterThan(firstGap);
+      expect(secondGap).toBeGreaterThanOrEqual(150);
+    } finally {
+      await engine.stop();
+    }
+  });
+
+  test("a challenged profile page does not stop polling", async () => {
+    const { resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 10,
+      blockBackoffBaseMs: 100,
+      blockBackoffMaxMs: 400,
+    });
+    resolver.error = new TikTokError(
+      "TikTok is still challenging page lookups.",
+      "blocked",
+      null,
+      "page",
+    );
+    engine.start();
+    try {
+      await engine.addMonitor({ uniqueId: "one", intervalSec: 10 });
+      await sleep(40);
+      expect(resolver.calls).toBe(1);
+
+      await engine.addMonitor({ uniqueId: "two", intervalSec: 10 });
+      const deadline = Date.now() + 300;
+      while (resolver.calls < 2 && Date.now() < deadline) await sleep(10);
+      expect(resolver.calls).toBe(2);
+    } finally {
+      await engine.stop();
+    }
+  });
+
+  test("cooldown skips other monitors without touching the resolver", async () => {
+    const { resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 10,
+      blockBackoffBaseMs: 100,
+      blockBackoffMaxMs: 400,
+    });
+    resolver.error = new TikTokError(
+      "TikTok served a browser challenge",
+      "blocked",
+    );
+    engine.start();
+    try {
+      await engine.addMonitor({ uniqueId: "one", intervalSec: 10 });
+      await sleep(40);
+      expect(resolver.calls).toBe(1);
+      await engine.addMonitor({ uniqueId: "two", intervalSec: 10 });
+      await sleep(40);
+      expect(resolver.calls).toBe(1);
+    } finally {
+      await engine.stop();
+    }
   });
 });

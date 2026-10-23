@@ -159,6 +159,22 @@ describe("watch page", () => {
     }
   });
 
+  test("an errored row shows the reason as a chip title", async () => {
+    const { app, store, engine } = setup();
+    const monitor = await engine.addMonitor({ uniqueId: "errorcase" });
+    monitor.state = "error";
+    monitor.live = false;
+    monitor.lastError =
+      'TikTok served a browser challenge (WAF) instead of the live page. <script>alert("x")</script>';
+    store.save();
+
+    const panel = await (await get(app, "/partials/users")).text();
+    expect(panel).toContain("chip is-error");
+    expect(panel).toContain("browser challenge (WAF)");
+    expect(panel).toContain("&lt;script&gt;");
+    expect(panel).not.toContain("<script>");
+  });
+
   test("check returns 204 with a refresh trigger and flips the chip live", async () => {
     const { app, engine } = setup();
     const monitor = await engine.addMonitor({ uniqueId: "checkcase" });

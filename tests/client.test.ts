@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { TikTokClient, type FetchLike } from "../src/tiktok/client";
+import {
+  TikTokClient,
+  TikTokError,
+  type FetchLike,
+} from "../src/tiktok/client";
 
 const liveApi = await Bun.file(
   join(import.meta.dir, "fixtures", "live-api.json"),
@@ -98,5 +102,115 @@ describe("TikTok client", () => {
       },
     });
     expect(client.resolve({ uniqueId: "blocked" })).rejects.toThrow("403");
+  });
+
+  test("a WAF challenge page surfaces blocked, not parse", async () => {
+    const challenge =
+      '<html><head><title>Please wait...</title></head><body>Please wait... SlardarWAF<div id="_wafchallengeid">abc</div></body></html>';
+    const blockedFetch = async (url: string) => {
+      if (url === "https://www.tiktok.com/")
+        return new Response("<html></html>", { status: 200 });
+      if (url.includes("api-live")) return new Response("", { status: 403 });
+      if (url.includes("/@x/live"))
+        return new Response(challenge, { status: 200 });
+      return new Response("", { status: 404 });
+    };
+    const client = new TikTokClient({ retries: 1, fetch: blockedFetch });
+    let error: unknown;
+    try {
+      await client.resolve({ uniqueId: "x" });
+    } catch (e) {
+      error = e;
+    }
+    // API 403 (blocked) then page challenge (blocked): the block survives,
+    // not the page parse error.
+    expect(error).toBeInstanceOf(TikTokError);
+    expect((error as TikTokError).kind).toBe("blocked");
+    expect((error as Error).message).toMatch(/blocked|challenge|WAF/i);
+
+    // Page challenge on its own mentions the challenge + remedy.
+    const challengeOnly = new TikTokClient({
+      retries: 1,
+      fetch: async (url: string) => {
+        if (url === "https://www.tiktok.com/")
+          return new Response("<html></html>", { status: 200 });
+        if (url.includes("api-live"))
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        if (url.includes("/@x/live"))
+          return new Response(challenge, { status: 200 });
+        return new Response("", { status: 404 });
+      },
+    });
+    let challengeError: unknown;
+    try {
+      await challengeOnly.resolve({ uniqueId: "x" });
+    } catch (e) {
+      challengeError = e;
+    }
+    expect(challengeError).toBeInstanceOf(TikTokError);
+    expect((challengeError as TikTokError).kind).toBe("blocked");
+    expect((challengeError as Error).message).toMatch(/challenge/i);
+  });
+
+  test("a challenged page is not re-fetched on the next lookup", async () => {
+    const challenge =
+      '<html><body>Please wait... SlardarWAF<p id="_wafchallengeid"></p></body></html>';
+    let pageCalls = 0;
+    const client = new TikTokClient({
+      retries: 1,
+      pageCooldownMs: 60_000,
+      fetch: async (url) => {
+        if (url === "https://www.tiktok.com/")
+          return new Response("<html></html>", { status: 200 });
+        if (url.includes("api-live"))
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        pageCalls += 1;
+        return new Response(challenge, { status: 200 });
+      },
+    });
+    for (const attempt of [1, 2]) {
+      let error: unknown;
+      try {
+        await client.resolve({ uniqueId: "x" });
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(TikTokError);
+      expect((error as TikTokError).kind).toBe("blocked");
+      expect((error as TikTokError).source).toBe("page");
+      expect(pageCalls).toBe(1);
+    }
+  });
+
+  test("a plain unparseable page still reports parse", async () => {
+    const client = new TikTokClient({
+      retries: 1,
+      fetch: async (url) => {
+        if (url === "https://www.tiktok.com/")
+          return new Response("<html></html>", { status: 200 });
+        if (url.includes("api-live"))
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        return new Response("<html><body>no data here</body></html>", {
+          status: 200,
+        });
+      },
+    });
+    let error: unknown;
+    try {
+      await client.resolve({ uniqueId: "plain" });
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(TikTokError);
+    expect((error as TikTokError).kind).toBe("parse");
   });
 });
