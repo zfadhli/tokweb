@@ -73,6 +73,7 @@ export function monitorStatus(monitor: Monitor): StatusView {
   if (monitor.state === 'checking') return { label: 'checking', kind: 'checking' }
   if (monitor.live) return { label: 'live', kind: 'live' }
   if (monitor.state === 'stopped') return { label: 'stopped', kind: 'stopped' }
+  if (monitor.state === 'waiting') return { label: 'idle', kind: 'idle' }
   return { label: 'standby', kind: 'standby' }
 }
 

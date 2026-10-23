@@ -96,7 +96,8 @@ describe('monitor status', () => {
     expect(monitorStatus(monitor({ state: 'error', live: true }))).toEqual({ label: 'error', kind: 'error' })
     expect(monitorStatus(monitor({ state: 'checking' }))).toEqual({ label: 'checking', kind: 'checking' })
     expect(monitorStatus(monitor({ state: 'live', live: true }))).toEqual({ label: 'live', kind: 'live' })
-    expect(monitorStatus(monitor())).toEqual({ label: 'standby', kind: 'standby' })
+    expect(monitorStatus(monitor({ state: 'waiting' }))).toEqual({ label: 'idle', kind: 'idle' })
+    expect(monitorStatus(monitor({ state: 'idle' }))).toEqual({ label: 'standby', kind: 'standby' })
   })
 
   test('handle prefers the username', () => {
