@@ -9,6 +9,12 @@ export interface VariantOption {
   selected: boolean;
 }
 
+export interface CookieFieldView {
+  name: string;
+  label: string;
+  saved: boolean;
+}
+
 export interface SettingsView {
   outputDir: string;
   ffmpegPath: string;
@@ -17,6 +23,7 @@ export interface SettingsView {
   bitrate: string;
   keepSource: boolean;
   hasCookies: boolean;
+  cookieFields: CookieFieldView[];
   variants: VariantOption[];
 }
 

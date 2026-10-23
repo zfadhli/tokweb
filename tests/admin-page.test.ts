@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Engine } from "../src/engine";
 import { createApp } from "../src/server";
 import { adminRoutes } from "../src/server/pages/admin";
+import { cookiePairs, mergeCookies } from "../src/server/settings";
 import { Store } from "../src/store";
 import { TikTokClient } from "../src/tiktok/client";
 import {
@@ -51,7 +52,10 @@ function savedForm(extra: [string, string][] = []): [string, string][] {
     ["bitrate", ""],
     ["proxy", ""],
     ["userAgent", ""],
-    ["cookies", "secret"],
+    ["cookie-ttwid", "abc123"],
+    ["cookie-msToken", ""],
+    ["cookie-tt_chain_token", ""],
+    ["cookie-sessionid", ""],
     ["clearCookies", ""],
     ["keepSource", "off"],
     ["keepSource", "on"],
@@ -85,8 +89,10 @@ describe("admin page", () => {
       'name="ffmpegPath"',
       'name="proxy"',
       'name="userAgent"',
-      'name="cookies"',
-      'rows="4"',
+      'name="cookie-ttwid"',
+      'name="cookie-msToken"',
+      'name="cookie-tt_chain_token"',
+      'name="cookie-sessionid"',
       "Status: not set.",
       'name="clearCookies"',
       "Clear saved cookies",
@@ -103,7 +109,7 @@ describe("admin page", () => {
 
   test("saved cookies never render into the page", async () => {
     const { app, store } = setup();
-    store.state.settings.cookies = "super-secret-cookies";
+    store.state.settings.cookies = "ttwid=super-secret-cookies";
     store.save();
     const page = await (await get(app, "/admin")).text();
     expect(page).not.toContain("super-secret-cookies");
@@ -118,11 +124,11 @@ describe("admin page", () => {
     expect(store.state.settings.defaultMaxDurationSec).toBe(0);
     expect(store.state.settings.defaultVariant).toBe("hd");
     expect(store.state.settings.keepSource).toBe(true);
-    expect(store.state.settings.cookies).toBe("secret");
+    expect(store.state.settings.cookies).toBe("ttwid=abc123");
     const panel = await response.text();
     expect(panel).toContain('id="settings-panel"');
     expect(panel).toContain('<p class="notice">Settings saved.</p>');
-    expect(panel).not.toContain("secret");
+    expect(panel).not.toContain("abc123");
     expect(response.headers.get("HX-Trigger")).toBe(
       JSON.stringify({ toast: { message: "Settings saved.", level: "ok" } }),
     );
@@ -138,7 +144,10 @@ describe("admin page", () => {
       ["keepSource", "off"],
       ["clearCookies", ""],
       ["clearCookies", "1"],
-      ["cookies", ""],
+      ["cookie-ttwid", ""],
+      ["cookie-msToken", ""],
+      ["cookie-tt_chain_token", ""],
+      ["cookie-sessionid", ""],
     ]);
     expect(response.status).toBe(200);
     expect(store.state.settings.cookies).toBe("");
@@ -236,6 +245,95 @@ describe("admin page", () => {
     expect(page).toContain("width: 6%");
   });
 
+  test("GET /admin renders one input per cookie field with not-set hints", async () => {
+    const { app } = setup();
+    const page = await (await get(app, "/admin")).text();
+    for (const name of ["ttwid", "msToken", "tt_chain_token", "sessionid"]) {
+      expect(page).toContain(`name="cookie-${name}"`);
+    }
+    expect(page).not.toContain('name="cookies"');
+    expect(page).not.toContain("super-secret");
+    const hints = page.match(/Status: not set\./g) ?? [];
+    expect(hints.length).toBe(4);
+    expect(page.indexOf('name="cookie-ttwid"')).toBeLessThan(
+      page.indexOf('name="cookie-msToken"'),
+    );
+    expect(page.indexOf('name="cookie-msToken"')).toBeLessThan(
+      page.indexOf('name="cookie-tt_chain_token"'),
+    );
+    expect(page.indexOf('name="cookie-tt_chain_token"')).toBeLessThan(
+      page.indexOf('name="cookie-sessionid"'),
+    );
+  });
+
+  test("PUT with only cookie-ttwid stores it", async () => {
+    const { app, store } = setup();
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-ttwid", "abc123"],
+      ["cookie-msToken", ""],
+      ["cookie-tt_chain_token", ""],
+      ["cookie-sessionid", ""],
+    ]);
+    expect(response.status).toBe(200);
+    expect(store.state.settings.cookies).toBe("ttwid=abc123");
+  });
+
+  test("a second PUT setting only msToken keeps ttwid", async () => {
+    const { app, store } = setup();
+    await putForm(app, "/admin/settings", [["cookie-ttwid", "abc123"]]);
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-msToken", "m1"],
+    ]);
+    expect(response.status).toBe(200);
+    expect(store.state.settings.cookies).toBe("ttwid=abc123; msToken=m1");
+  });
+
+  test("blank ttwid plus set msToken does not drop the stored ttwid", async () => {
+    const { app, store } = setup();
+    store.state.settings.cookies = "ttwid=keepme";
+    store.save();
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-ttwid", ""],
+      ["cookie-msToken", "m1"],
+    ]);
+    expect(response.status).toBe(200);
+    expect(store.state.settings.cookies).toBe("ttwid=keepme; msToken=m1");
+  });
+
+  test("a stored unknown cookie survives a save that sets ttwid", async () => {
+    const { app, store } = setup();
+    store.state.settings.cookies = "sessionid_ss=x";
+    store.save();
+    await putForm(app, "/admin/settings", [["cookie-ttwid", "abc123"]]);
+    expect(store.state.settings.cookies).toBe("sessionid_ss=x; ttwid=abc123");
+  });
+
+  test("submitted and stored cookie values never render", async () => {
+    const { app } = setup();
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-ttwid", "zzsecret9"],
+    ]);
+    expect(response.status).toBe(200);
+    expect(await response.text()).not.toContain("zzsecret9");
+    const page = await (await get(app, "/admin")).text();
+    expect(page).not.toContain("zzsecret9");
+    expect(page).toContain("Status: saved. Blank keeps the saved value.");
+  });
+
+  test("clearCookies empties cookies even when fields are filled", async () => {
+    const { app, store } = setup();
+    store.state.settings.cookies = "ttwid=old; msToken=old";
+    store.save();
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-ttwid", "new"],
+      ["cookie-msToken", "newm"],
+      ["clearCookies", ""],
+      ["clearCookies", "1"],
+    ]);
+    expect(response.status).toBe(200);
+    expect(store.state.settings.cookies).toBe("");
+  });
+
   test("a hostile handle renders inert and the toast header stays ASCII", async () => {
     const { app, store } = setup();
     store.state.recordings.push({
@@ -259,5 +357,30 @@ describe("admin page", () => {
     const response = await putForm(app, "/admin/settings", savedForm());
     const raw = response.headers.get("HX-Trigger") ?? "";
     expect(raw).toMatch(/^[\x20-\x7E]*$/);
+  });
+});
+
+describe("cookiePairs / mergeCookies", () => {
+  test("cookiePairs trims, drops empty names, keeps the first occurrence", () => {
+    expect(cookiePairs("a=1; b=2")).toEqual({ a: "1", b: "2" });
+    expect(cookiePairs("  ttwid=x ; ; =y; ttwid=z")).toEqual({ ttwid: "x" });
+    expect(cookiePairs("")).toEqual({});
+  });
+
+  test("mergeCookies preserves order and unknown keys, appends new ones", () => {
+    expect(mergeCookies("b=2; a=1", { a: "9" })).toBe("b=2; a=9");
+    expect(mergeCookies("sessionid_ss=x", { ttwid: "abc" })).toBe(
+      "sessionid_ss=x; ttwid=abc",
+    );
+    expect(mergeCookies("ttwid=old", { ttwid: "  ", msToken: "" })).toBe(
+      "ttwid=old",
+    );
+    expect(mergeCookies("", {})).toBe("");
+  });
+
+  test("values with %7C, =, +, . survive verbatim", () => {
+    const value = "a%7Cb=c+d.e";
+    expect(cookiePairs(`k=${value}`).k).toBe(value);
+    expect(mergeCookies("", { k: value })).toBe(`k=${value}`);
   });
 });

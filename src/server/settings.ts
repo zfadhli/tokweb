@@ -7,6 +7,43 @@ import type { ServerDeps } from "./deps";
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+// The cookies the resolver actually needs, not a browser dump. ttwid is the
+// one the client reads itself and the WAF challenge sets; the rest are what
+// people copy from a real header.
+export const COOKIE_FIELDS: Array<{ name: string; label: string }> = [
+  { name: "ttwid", label: "ttwid" },
+  { name: "msToken", label: "msToken" },
+  { name: "tt_chain_token", label: "tt_chain_token" },
+  { name: "sessionid", label: "sessionid" },
+];
+
+export function cookiePairs(raw: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of raw.split(";")) {
+    const at = part.indexOf("=");
+    const name = (at < 0 ? part : part.slice(0, at)).trim();
+    if (!name || name in out) continue;
+    out[name] = (at < 0 ? "" : part.slice(at + 1)).trim();
+  }
+  return out;
+}
+
+export function mergeCookies(
+  raw: string,
+  updates: Record<string, string>,
+): string {
+  const merged = cookiePairs(raw);
+  for (const [name, value] of Object.entries(updates)) {
+    if (!name.trim()) continue;
+    const next = value.trim();
+    if (!next) continue;
+    merged[name] = next;
+  }
+  return Object.entries(merged)
+    .map(([name, value]) => `${name}=${value}`)
+    .join("; ");
+}
+
 export function publicSettings(store: Store): Record<string, unknown> {
   const { cookies, ...rest } = store.state.settings;
   return { ...rest, hasCookies: cookies.trim().length > 0 };

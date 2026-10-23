@@ -2,7 +2,12 @@ import { Elysia } from "elysia";
 import { html } from "@elysia/html";
 import { VARIANTS } from "../../core/types";
 import type { ServerDeps } from "../deps";
-import { updateSettings } from "../settings";
+import {
+  COOKIE_FIELDS,
+  cookiePairs,
+  mergeCookies,
+  updateSettings,
+} from "../settings";
 import { chrome } from "./home";
 import { fmtBytes, fmtDuration, isActiveRecording } from "../view";
 import { Admin, type AdminView } from "../views/admin";
@@ -50,6 +55,11 @@ export function adminData(
       bitrate: settings.bitrate,
       keepSource: settings.keepSource,
       hasCookies: settings.cookies.trim().length > 0,
+      cookieFields: COOKIE_FIELDS.map((field) => ({
+        name: field.name,
+        label: field.label,
+        saved: (cookiePairs(settings.cookies)[field.name] ?? "") !== "",
+      })),
       variants: VARIANTS.map((value) => ({
         value,
         label: value,
@@ -173,9 +183,17 @@ export function adminRoutes(deps: ServerDeps) {
         : false;
       if (clearCookies) input.cookies = "";
       else {
-        const cookies = formFirst(form, ["cookies"]);
-        if (cookies !== undefined && cookies.length > 0)
-          input.cookies = cookies;
+        const updates: Record<string, string> = {};
+        for (const field of COOKIE_FIELDS) {
+          const value = formFirst(form, [`cookie-${field.name}`]);
+          if (value !== undefined && value.trim() !== "")
+            updates[field.name] = value.trim();
+        }
+        if (Object.keys(updates).length > 0)
+          input.cookies = mergeCookies(
+            deps.store.state.settings.cookies,
+            updates,
+          );
       }
 
       await updateSettings(deps, input);

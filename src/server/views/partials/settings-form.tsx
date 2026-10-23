@@ -126,24 +126,26 @@ export function SettingsForm(props: {
                 placeholder="blank = default"
               />
             </div>
-            <div class="field span-2">
-              <label for="set-cookies">Cookies</label>
-              <textarea
-                class="textarea"
-                id="set-cookies"
-                name="cookies"
-                rows="4"
-                {...{ autocomplete: "off" }}
-                placeholder="paste cookies here"
-              ></textarea>
-              {settings.hasCookies ? (
-                <span class="hint">
-                  Status: saved. Pasting text replaces the saved value.
-                </span>
-              ) : (
-                <span class="hint">Status: not set.</span>
-              )}
-            </div>
+            {settings.cookieFields.map((field) => (
+              <div class="field">
+                <label for={`set-cookie-${field.name}`}>{field.label}</label>
+                <input
+                  class="input"
+                  type="text"
+                  id={`set-cookie-${field.name}`}
+                  name={`cookie-${field.name}`}
+                  {...{ autocomplete: "off" }}
+                  placeholder={`paste ${field.name} from your browser cookies`}
+                />
+                {field.saved ? (
+                  <span class="hint">
+                    Status: saved. Blank keeps the saved value.
+                  </span>
+                ) : (
+                  <span class="hint">Status: not set.</span>
+                )}
+              </div>
+            ))}
             <div class="field span-2">
               <input type="hidden" name="clearCookies" value="" />
               <label class="check">

@@ -148,7 +148,10 @@ is not implemented.
 
 ## Cookies and exposure
 
-Paste either format into Admin or pass `-cookies`:
+Admin takes one value per field (`ttwid`, `msToken`, `tt_chain_token`, `sessionid`):
+paste each value from your browser cookies into its input. A blank input keeps
+the saved value, and the clear-cookies checkbox wipes everything. For the CLI
+`-cookies` flag and `/api/settings`, paste either format below instead:
 
 ```json
 [
