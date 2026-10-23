@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Engine } from '../src/engine'
 import { createApp } from '../src/server'
@@ -126,6 +126,41 @@ describe('recordings page', () => {
       expect(page).toContain(marker)
     }
     expect(page).not.toContain('href="/api/recordings/rec-live/download"')
+  })
+
+  test('the polled grid heals after a capture file is deleted on disk', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-1', uniqueId: 'aurorabeats' })
+    addRecording(store, { id: 'rec-2', uniqueId: 'northlight' })
+    rmSync(join(store.state.settings.outputDir, 'rec-1.mp4'))
+
+    const fragment = await (await get(app, '/partials/recordings')).text()
+
+    expect(fragment).not.toContain('@aurorabeats')
+    expect(fragment).toContain('@northlight')
+    expect(store.state.recordings.map((recording) => recording.id)).toEqual(['rec-2'])
+  })
+
+  test('POST /recordings/rescan drops rows whose files are gone and keeps the page in sync', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-gone', uniqueId: 'drumandbass' })
+    addRecording(store, { id: 'rec-kept', uniqueId: 'aurorabeats' })
+    rmSync(join(store.state.settings.outputDir, 'rec-gone.mp4'))
+
+    const response = await app.handle(new Request('http://localhost/recordings/rescan', { method: 'POST' }))
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('HX-Redirect')).toBe('/recordings')
+    expect(store.state.recordings.map((recording) => recording.id)).toEqual(['rec-kept'])
+    expect(JSON.parse(readFileSync(join(store.dataDir, 'state.json'), 'utf8')).recordings).toHaveLength(1)
+  })
+
+  test('the archive offers a rescan action in the page header', async () => {
+    const { app } = setup()
+    const html = await (await get(app, '/recordings')).text()
+
+    expect(html).toContain('hx-post="/recordings/rescan"')
+    expect(html).toContain('Rescan')
   })
 
   test('GET /partials/recordings returns only the card grid fragment', async () => {

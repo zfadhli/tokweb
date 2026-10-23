@@ -4,6 +4,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -29,6 +30,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 /** Filenames carry the start second; a live recording carries milliseconds. */
 const SAME_CAPTURE_MS = 2_000
+
+/** States whose file may legitimately not exist yet while ffmpeg spins up. */
+const LIVE_STATES = new Set(['starting', 'recording', 'finalizing'])
 
 function sameCapture(left: Recording, right: { uniqueId: string; startedAt: number | null }): boolean {
   if (right.startedAt === null || left.uniqueId === 'unknown' || left.uniqueId !== right.uniqueId) return false
@@ -152,21 +156,29 @@ export class Store {
   }
 
   /**
-   * Bring the index in line with the disk: mark interrupted jobs failed and
-   * adopt files that were recorded before a crash. Safe to run repeatedly.
+   * Startup recovery: mark jobs interrupted by the last shutdown as failed, then
+   * bring the index in line with the disk. Safe to run repeatedly.
    */
   reconcile(now = Date.now()): void {
-    const { outputDir } = this.state.settings
-    mkdirSync(outputDir, { recursive: true })
-
     for (const recording of this.state.recordings) {
-      if (recording.state === 'starting' || recording.state === 'recording' || recording.state === 'finalizing') {
+      if (LIVE_STATES.has(recording.state)) {
         recording.state = 'failed'
         recording.error = recording.error ?? 'Interrupted by server restart'
         recording.endedAt = recording.endedAt ?? now
         recording.durationMs = recording.endedAt - recording.startedAt
       }
     }
+    this.sync()
+  }
+
+  /**
+   * Bring the index in line with the disk without touching live recordings, so
+   * it can run while the engine is capturing. Returns true when state changed.
+   */
+  sync(): boolean {
+    const { outputDir } = this.state.settings
+    mkdirSync(outputDir, { recursive: true })
+    let changed = false
 
     const known = new Set(
       this.state.recordings.map((recording) => recording.file).filter((file): file is string => Boolean(file)),
@@ -184,9 +196,11 @@ export class Store {
         if (!twin.file) {
           twin.file = entry
           twin.bytes = info.size
+          changed = true
         }
         continue
       }
+      changed = true
       this.state.recordings.push({
         id: `disk-${info.ino.toString(36)}-${Math.floor(info.mtimeMs)}`,
         monitorId: null,
@@ -218,9 +232,30 @@ export class Store {
       }
       duplicates.add(recording)
     }
-    if (duplicates.size > 0) this.state.recordings = this.state.recordings.filter((item) => !duplicates.has(item))
+    if (duplicates.size > 0) {
+      this.state.recordings = this.state.recordings.filter((item) => !duplicates.has(item))
+      changed = true
+    }
+
+    // Runs after adoption: a row still pointing at nothing once the disk has been
+    // scanned is gone for good (deleted or moved by hand), so drop it and its
+    // cached thumbnail. Live rows are skipped, their file may appear next tick.
+    const orphans = this.state.recordings.filter(
+      (recording) => !LIVE_STATES.has(recording.state) && Boolean(recording.file) && !this.recordingPath(recording),
+    )
+    for (const recording of orphans) {
+      rmSync(join(this.dataDir, 'thumbs', `${recording.id}.jpg`), { force: true })
+    }
+    if (orphans.length > 0) {
+      console.warn(`tokweb: dropped ${orphans.length} recording(s) whose file is no longer on disk.`)
+      const dropped = new Set(orphans)
+      this.state.recordings = this.state.recordings.filter((recording) => !dropped.has(recording))
+      changed = true
+    }
 
     this.state.recordings.sort((a, b) => b.startedAt - a.startedAt)
-    if (this.state.recordings.length > 500) this.state.recordings.length = 500
+    const capped = this.state.recordings.length > 500
+    if (capped) this.state.recordings.length = 500
+    return changed || capped
   }
 }

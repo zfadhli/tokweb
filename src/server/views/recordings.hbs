@@ -4,6 +4,12 @@
     <h1>Recordings</h1>
     <p class="page-sub">Every capture on this machine, newest first.</p>
   </div>
+  <div class="page-actions">
+    <button class="btn btn-ghost" type="button" hx-post="/recordings/rescan" hx-swap="none" title="Scan the output folder for files added or deleted outside the app">
+      <svg class="icon" aria-hidden="true"><use href="#i-refresh" /></svg>
+      Rescan
+    </button>
+  </div>
 </header>
 
 <div x-data="{ q: '', state: 'all' }" class="recordings-page">

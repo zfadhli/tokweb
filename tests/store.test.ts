@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Store } from '../src/store'
+import type { Recording } from '../src/core/types'
 import { tempDir } from './helpers'
 
 describe('Store', () => {
@@ -176,6 +177,170 @@ describe('Store', () => {
     expect(store.state.recordings[0]?.id).toBe('r1')
     expect(store.state.recordings[0]?.file).toBe('alice_20260102_030405.ts')
     expect(store.recordingPath(store.state.recordings[0]!)).toBe(join(output, 'alice_20260102_030405.ts'))
+  })
+
+  test('drops a settled recording whose file was deleted from disk', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(join(data, 'thumbs'), { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(join(output, 'kept.mp4'), 'video-bytes')
+    writeFileSync(join(data, 'thumbs', 'gone.jpg'), 'jpeg-bytes')
+    writeFileSync(join(data, 'thumbs', 'kept.jpg'), 'jpeg-bytes')
+    const base = {
+      monitorId: null,
+      uniqueId: 'alice',
+      roomId: null,
+      title: '',
+      variant: 'best',
+      endedAt: 2000,
+      durationMs: 1000,
+      bytes: 12,
+      error: null,
+    }
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [
+          { ...base, id: 'gone', state: 'completed', file: 'gone.mp4', startedAt: 1000 },
+          { ...base, id: 'kept', state: 'completed', file: 'kept.mp4', startedAt: 2000 },
+        ],
+      }),
+    )
+
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+
+    expect(store.state.recordings.map((recording) => recording.id)).toEqual(['kept'])
+    expect(existsSync(join(data, 'thumbs', 'gone.jpg'))).toBe(false)
+    expect(existsSync(join(data, 'thumbs', 'kept.jpg'))).toBe(true)
+  })
+
+  test('sync heals the index while a live capture is left alone', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(data, { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(join(output, 'kept.mp4'), 'video-bytes')
+    const base: Omit<Recording, 'id' | 'state' | 'file' | 'startedAt' | 'endedAt'> = {
+      monitorId: null,
+      uniqueId: 'alice',
+      roomId: null,
+      title: '',
+      variant: 'best',
+      durationMs: 1000,
+      bytes: 12,
+      error: null,
+    }
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [{ ...base, id: 'kept', state: 'completed', file: 'kept.mp4', startedAt: 1000, endedAt: 2000 }],
+      }),
+    )
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+    store.state.recordings.push(
+      { ...base, id: 'live', state: 'recording', file: 'live.ts', startedAt: 3000, endedAt: null },
+      { ...base, id: 'gone', state: 'completed', file: 'gone.mp4', startedAt: 4000, endedAt: 5000 },
+    )
+    writeFileSync(join(output, 'fresh.mp4'), 'new-bytes')
+
+    expect(store.sync()).toBe(true)
+
+    const ids = store.state.recordings.map((recording) => recording.id)
+    expect(ids).toContain('kept')
+    expect(ids).toContain('live')
+    expect(ids.some((id) => id.startsWith('disk-'))).toBe(true)
+    expect(ids).not.toContain('gone')
+    expect(store.state.recordings.find((recording) => recording.id === 'live')?.state).toBe('recording')
+    expect(store.sync()).toBe(false)
+  })
+
+  test('drops an interrupted capture whose file never landed', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(data, { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [
+          {
+            id: 'r1',
+            monitorId: null,
+            uniqueId: 'alice',
+            roomId: null,
+            title: '',
+            variant: 'best',
+            state: 'recording',
+            file: 'alice_20260102_030405.ts',
+            startedAt: Date.now() - 10_000,
+            endedAt: null,
+            durationMs: 0,
+            bytes: 0,
+            error: null,
+          },
+        ],
+      }),
+    )
+
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+
+    expect(store.state.recordings).toHaveLength(0)
+  })
+
+  test('drops a failed capture whose file was deleted from disk', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(data, { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(join(output, 'alive.mp4'), 'video-bytes')
+    const base = {
+      monitorId: null,
+      roomId: null,
+      title: '',
+      variant: 'best' as const,
+      durationMs: 1000,
+      bytes: 12,
+      error: null,
+    }
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [
+          {
+            ...base,
+            id: 'r1',
+            uniqueId: '600',
+            state: 'failed',
+            file: '600_1031_20261023_194302.mp4',
+            startedAt: 1000,
+            endedAt: 2000,
+            error: 'ffmpeg exited with code 1',
+          },
+          { ...base, id: 'r2', uniqueId: 'alice', state: 'completed', file: 'alive.mp4', startedAt: 3000, endedAt: 4000 },
+        ],
+      }),
+    )
+
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+
+    expect(store.state.recordings.map((recording) => recording.id)).toEqual(['r2'])
   })
 
   test('adopts recordings that exist on disk before a restart', () => {

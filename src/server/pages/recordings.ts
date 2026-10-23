@@ -96,6 +96,9 @@ function rowView(recording: Recording): RecordingRow {
 }
 
 function tableData(deps: ServerDeps): { rows: RecordingRow[] } {
+  // The grid polls this every 5s; healing here picks up files deleted or added
+  // on disk while the server runs, without a restart or a rescan button.
+  if (deps.store.sync()) deps.store.save()
   return { rows: deps.store.state.recordings.map(rowView) }
 }
 
@@ -197,6 +200,10 @@ export function recordingsRoutes(deps: ServerDeps) {
       }
       if (redirect?.startsWith('/')) return new Response(null, { status: 204, headers: { 'HX-Redirect': redirect } })
       return new Response(null, { status: 204, headers: toastTrigger('Recording deleted.', { refreshRecordings: true }) })
+    })
+    .post('/recordings/rescan', () => {
+      if (deps.store.sync()) deps.store.save()
+      return new Response(null, { status: 204, headers: { 'HX-Redirect': '/recordings' } })
     })
     .post('/recordings/:id/remux', async ({ params }) => {
       const recording = deps.store.recording(params.id)
