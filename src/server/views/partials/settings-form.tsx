@@ -127,20 +127,28 @@ export function SettingsForm(props: {
               />
             </div>
             {settings.cookieFields.map((field) => (
-              <div class="field">
+              <div class="field" x-data="{ show: false }">
                 <label for={`set-cookie-${field.name}`}>{field.label}</label>
                 <input
                   class="input"
-                  type="text"
+                  type="password"
+                  x-bind:type="show ? 'text' : 'password'"
                   id={`set-cookie-${field.name}`}
                   name={`cookie-${field.name}`}
-                  {...{ autocomplete: "off" }}
+                  value={esc(field.value)}
+                  {...{ autocomplete: "new-password" }}
                   placeholder={`paste ${field.name} from your browser cookies`}
                 />
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-small"
+                  x-on:click="show = !show"
+                  x-text="show ? 'Hide' : 'Show'"
+                >
+                  Show
+                </button>
                 {field.saved ? (
-                  <span class="hint">
-                    Status: saved. Blank keeps the saved value.
-                  </span>
+                  <span class="hint">Status: saved.</span>
                 ) : (
                   <span class="hint">Status: not set.</span>
                 )}

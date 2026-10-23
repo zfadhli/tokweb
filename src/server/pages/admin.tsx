@@ -54,12 +54,15 @@ export function adminData(
       userAgent: settings.userAgent,
       bitrate: settings.bitrate,
       keepSource: settings.keepSource,
-      hasCookies: settings.cookies.trim().length > 0,
-      cookieFields: COOKIE_FIELDS.map((field) => ({
-        name: field.name,
-        label: field.label,
-        saved: (cookiePairs(settings.cookies)[field.name] ?? "") !== "",
-      })),
+      cookieFields: (() => {
+        const pairs = cookiePairs(settings.cookies);
+        return COOKIE_FIELDS.map((field) => ({
+          name: field.name,
+          label: field.label,
+          value: pairs[field.name] ?? "",
+          saved: (pairs[field.name] ?? "") !== "",
+        }));
+      })(),
       variants: VARIANTS.map((value) => ({
         value,
         label: value,
@@ -122,14 +125,15 @@ function parseMinutes(raw: string | undefined): number | undefined {
 export function adminRoutes(deps: ServerDeps) {
   return new Elysia({ name: "admin" })
     .use(html())
-    .get("/admin", ({ html }) =>
-      html(
+    .get("/admin", ({ html, set }) => {
+      set.headers["Cache-Control"] = "no-store";
+      return html(
         <Admin
           chrome={chrome(deps, "admin", "Settings")}
           data={adminData(deps)}
         />,
-      ),
-    )
+      );
+    })
     .put("/admin/settings", async ({ request }) => {
       const form = await request.formData();
       const input: Record<string, unknown> = {};
@@ -184,12 +188,15 @@ export function adminRoutes(deps: ServerDeps) {
       if (clearCookies) input.cookies = "";
       else {
         const updates: Record<string, string> = {};
+        let touched = false;
         for (const field of COOKIE_FIELDS) {
           const value = formFirst(form, [`cookie-${field.name}`]);
-          if (value !== undefined && value.trim() !== "")
+          if (value !== undefined) {
+            touched = true;
             updates[field.name] = value.trim();
+          }
         }
-        if (Object.keys(updates).length > 0)
+        if (touched)
           input.cookies = mergeCookies(
             deps.store.state.settings.cookies,
             updates,

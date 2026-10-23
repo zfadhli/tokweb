@@ -107,13 +107,24 @@ describe("admin page", () => {
     }
   });
 
-  test("saved cookies never render into the page", async () => {
+  test("GET /admin prefills stored cookie values masked with a show/hide toggle", async () => {
     const { app, store } = setup();
-    store.state.settings.cookies = "ttwid=super-secret-cookies";
+    store.state.settings.cookies = "ttwid=abc123; sessionid_ss=keep";
     store.save();
     const page = await (await get(app, "/admin")).text();
-    expect(page).not.toContain("super-secret-cookies");
-    expect(page).toContain("Status: saved.");
+    expect(page).toContain('value="abc123"');
+    expect(page).toContain('type="password"');
+    expect(page).toContain('x-on:click="show = !show"');
+    expect(page).toContain("x-text=\"show ? 'Hide' : 'Show'\"");
+  });
+
+  test("a stored cookie value with markup renders escaped, not as markup", async () => {
+    const { app, store } = setup();
+    store.state.settings.cookies = 'ttwid=a<b>&"c';
+    store.save();
+    const page = await (await get(app, "/admin")).text();
+    expect(page).not.toContain('value="a<b>');
+    expect(page).toContain('value="a&lt;b&gt;&amp;&quot;c"');
   });
 
   test("PUT saves minutes as seconds, keepSource, and cookies with a toast", async () => {
@@ -128,7 +139,7 @@ describe("admin page", () => {
     const panel = await response.text();
     expect(panel).toContain('id="settings-panel"');
     expect(panel).toContain('<p class="notice">Settings saved.</p>');
-    expect(panel).not.toContain("abc123");
+    expect(panel).toContain('value="abc123"');
     expect(response.headers.get("HX-Trigger")).toBe(
       JSON.stringify({ toast: { message: "Settings saved.", level: "ok" } }),
     );
@@ -288,16 +299,18 @@ describe("admin page", () => {
     expect(store.state.settings.cookies).toBe("ttwid=abc123; msToken=m1");
   });
 
-  test("blank ttwid plus set msToken does not drop the stored ttwid", async () => {
+  test("blank ttwid removes the stored ttwid while unknown cookies survive", async () => {
     const { app, store } = setup();
-    store.state.settings.cookies = "ttwid=keepme";
+    store.state.settings.cookies = "ttwid=old; sessionid_ss=keep";
     store.save();
     const response = await putForm(app, "/admin/settings", [
       ["cookie-ttwid", ""],
-      ["cookie-msToken", "m1"],
+      ["cookie-sessionid", "xyz"],
     ]);
     expect(response.status).toBe(200);
-    expect(store.state.settings.cookies).toBe("ttwid=keepme; msToken=m1");
+    expect(store.state.settings.cookies).toBe(
+      "sessionid_ss=keep; sessionid=xyz",
+    );
   });
 
   test("a stored unknown cookie survives a save that sets ttwid", async () => {
@@ -308,16 +321,18 @@ describe("admin page", () => {
     expect(store.state.settings.cookies).toBe("sessionid_ss=x; ttwid=abc123");
   });
 
-  test("submitted and stored cookie values never render", async () => {
+  test("submitted and stored cookie values render back escaped", async () => {
     const { app } = setup();
     const response = await putForm(app, "/admin/settings", [
-      ["cookie-ttwid", "zzsecret9"],
+      ["cookie-ttwid", 'zz<secret>&"9'],
     ]);
     expect(response.status).toBe(200);
-    expect(await response.text()).not.toContain("zzsecret9");
+    const panel = await response.text();
+    expect(panel).not.toContain("zz<secret>");
+    expect(panel).toContain("zz&lt;secret&gt;&amp;&quot;9");
     const page = await (await get(app, "/admin")).text();
-    expect(page).not.toContain("zzsecret9");
-    expect(page).toContain("Status: saved. Blank keeps the saved value.");
+    expect(page).toContain("zz&lt;secret&gt;&amp;&quot;9");
+    expect(page).toContain("Status: saved.");
   });
 
   test("clearCookies empties cookies even when fields are filled", async () => {
@@ -372,9 +387,7 @@ describe("cookiePairs / mergeCookies", () => {
     expect(mergeCookies("sessionid_ss=x", { ttwid: "abc" })).toBe(
       "sessionid_ss=x; ttwid=abc",
     );
-    expect(mergeCookies("ttwid=old", { ttwid: "  ", msToken: "" })).toBe(
-      "ttwid=old",
-    );
+    expect(mergeCookies("ttwid=old", { ttwid: "  ", msToken: "" })).toBe("");
     expect(mergeCookies("", {})).toBe("");
   });
 

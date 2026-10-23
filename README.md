@@ -149,8 +149,11 @@ is not implemented.
 ## Cookies and exposure
 
 Admin takes one value per field (`ttwid`, `msToken`, `tt_chain_token`, `sessionid`):
-paste each value from your browser cookies into its input. A blank input keeps
-the saved value, and the clear-cookies checkbox wipes everything. For the CLI
+paste each value from your browser cookies into its input. Saved values are
+prefilled and masked, with a Show toggle per field. Saving writes exactly what
+the form shows, so clearing an input deletes that cookie; unknown cookies in the
+stored header are left alone and the clear-cookies checkbox wipes everything.
+For the CLI
 `-cookies` flag and `/api/settings`, paste either format below instead:
 
 ```json

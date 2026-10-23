@@ -36,8 +36,8 @@ export function mergeCookies(
   for (const [name, value] of Object.entries(updates)) {
     if (!name.trim()) continue;
     const next = value.trim();
-    if (!next) continue;
-    merged[name] = next;
+    if (!next) delete merged[name];
+    else merged[name] = next;
   }
   return Object.entries(merged)
     .map(([name, value]) => `${name}=${value}`)

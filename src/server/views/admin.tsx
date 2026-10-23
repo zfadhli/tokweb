@@ -12,6 +12,7 @@ export interface VariantOption {
 export interface CookieFieldView {
   name: string;
   label: string;
+  value: string;
   saved: boolean;
 }
 
@@ -22,7 +23,6 @@ export interface SettingsView {
   userAgent: string;
   bitrate: string;
   keepSource: boolean;
-  hasCookies: boolean;
   cookieFields: CookieFieldView[];
   variants: VariantOption[];
 }
