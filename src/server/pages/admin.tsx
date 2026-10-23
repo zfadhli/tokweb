@@ -204,8 +204,13 @@ export function adminRoutes(deps: ServerDeps) {
       }
 
       await updateSettings(deps, input);
+      // `JSX.Element` is `string | Promise<string>`, so the await is real
+      // (async components resolve) but lints as awaiting a non-Promise.
+      // Promise.resolve keeps the await meaningful and the type a Promise.
       return new Response(
-        await (<SettingsForm data={adminData(deps, "Settings saved.")} />),
+        await Promise.resolve(
+          <SettingsForm data={adminData(deps, "Settings saved.")} />,
+        ),
         {
           status: 200,
           headers: {
