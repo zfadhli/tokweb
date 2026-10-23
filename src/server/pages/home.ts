@@ -3,17 +3,7 @@ import type { ServerDeps } from '../deps'
 import { html, renderPage } from '../render'
 import type { PageChrome } from '../render'
 import type { Monitor, Recording } from '../../core/types'
-import {
-  displayHandle,
-  fmtBytes,
-  fmtDate,
-  fmtDay,
-  fmtDuration,
-  initials,
-  isPlayable,
-  monitorStatus,
-  plural,
-} from '../view'
+import { fmtBytes, fmtDay, fmtDayMonth, fmtDuration, initials, isPlayable, plural } from '../view'
 
 export function chrome(deps: ServerDeps, active: PageChrome['active'], title: string): PageChrome {
   return {
@@ -35,7 +25,9 @@ interface StatCard {
 interface DayBar {
   label: string
   bytes: string
-  px: number
+  /** Share of the week's peak day, so the bar chart scales with its panel. */
+  pct: number
+  rest: number
   hot: boolean
   zero: boolean
 }
@@ -48,13 +40,15 @@ interface CaptureCard {
   date: string
   duration: string
   bytes: string
+  thumb: boolean
 }
 
-interface WatchRow {
-  id: string
+interface CreatorCard {
   handle: string
-  status: string
-  statusKind: string
+  initial: string
+  avatarUrl: string | null
+  files: string
+  bytes: string
 }
 
 interface HomeData {
@@ -62,7 +56,7 @@ interface HomeData {
   days: DayBar[]
   weekTotal: string
   captures: CaptureCard[]
-  watch: WatchRow[]
+  creators: CreatorCard[]
 }
 
 const DAY_MS = 86_400_000
@@ -85,7 +79,8 @@ function dayBars(recordings: Recording[]): { days: DayBar[]; total: number } {
   const days = buckets.map((bytes, index) => ({
     label: fmtDay(start + index * DAY_MS),
     bytes: fmtBytes(bytes),
-    px: bytes === 0 || peak === 0 ? 4 : Math.max(8, Math.round((bytes / peak) * 104)),
+    pct: bytes === 0 || peak === 0 ? 0 : Math.max(6, Math.round((bytes / peak) * 100)),
+    rest: bytes === 0 || peak === 0 ? 100 : 100 - Math.max(6, Math.round((bytes / peak) * 100)),
     hot: index === 6,
     zero: bytes === 0,
   }))
@@ -98,29 +93,43 @@ function captureCard(recording: Recording): CaptureCard {
     handle: recording.uniqueId,
     initial: initials(recording.uniqueId),
     title: recording.title || 'Untitled stream',
-    date: fmtDate(recording.startedAt),
+    date: fmtDayMonth(recording.startedAt),
     duration: fmtDuration(recording.durationMs),
     bytes: fmtBytes(recording.bytes),
+    thumb: Boolean(recording.file),
   }
 }
 
-function watchRows(monitors: Monitor[]): WatchRow[] {
-  const rank = (monitor: Monitor): number => {
-    if (monitor.state === 'recording') return 0
-    return monitor.live ? 1 : 2
+function topCreators(recordings: Recording[], monitors: Monitor[]): CreatorCard[] {
+  const avatars = new Map<string, string>()
+  for (const monitor of monitors) {
+    if (monitor.uniqueId && monitor.avatarUrl && !avatars.has(monitor.uniqueId)) {
+      avatars.set(monitor.uniqueId, monitor.avatarUrl)
+    }
   }
-  return [...monitors]
-    .sort((left, right) => rank(left) - rank(right) || right.updatedAt - left.updatedAt)
-    .slice(0, 6)
-    .map((monitor) => {
-      const status = monitorStatus(monitor)
-      return {
-        id: monitor.id,
-        handle: displayHandle(monitor),
-        status: status.label,
-        statusKind: status.kind,
-      }
-    })
+  const byHandle = new Map<string, { files: number; bytes: number }>()
+  for (const recording of recordings) {
+    if (!recording.file) continue
+    const tally = byHandle.get(recording.uniqueId) ?? { files: 0, bytes: 0 }
+    tally.files += 1
+    tally.bytes += recording.bytes || 0
+    byHandle.set(recording.uniqueId, tally)
+  }
+  return [...byHandle]
+    .sort(
+      ([leftHandle, left], [rightHandle, right]) =>
+        right.files - left.files ||
+        right.bytes - left.bytes ||
+        leftHandle.localeCompare(rightHandle),
+    )
+    .slice(0, 4)
+    .map(([handle, tally]) => ({
+      handle,
+      initial: initials(handle),
+      avatarUrl: avatars.get(handle) ?? null,
+      files: plural(tally.files, 'file'),
+      bytes: fmtBytes(tally.bytes),
+    }))
 }
 
 export function homeData(deps: ServerDeps): HomeData {
@@ -162,7 +171,7 @@ export function homeData(deps: ServerDeps): HomeData {
     days,
     weekTotal: fmtBytes(total),
     captures: completed.slice(0, 4).map(captureCard),
-    watch: watchRows(monitors),
+    creators: topCreators(recordings, monitors),
   }
 }
 

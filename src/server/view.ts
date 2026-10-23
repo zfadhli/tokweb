@@ -32,6 +32,11 @@ export function fmtDay(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString('en-GB', { weekday: 'short' })
 }
 
+/** Date without the clock, for cards too narrow for a full timestamp. */
+export function fmtDayMonth(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 export function initials(name: string | null): string {
   const clean = String(name ?? '').replace(/[^a-z0-9]/gi, '')
   return (clean.slice(0, 2) || '?').toUpperCase()

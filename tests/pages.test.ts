@@ -89,7 +89,7 @@ describe('server-rendered pages', () => {
       'Latest captures',
       'Nothing captured yet.',
       'Last 7 days',
-      'On watch',
+      'Top creators',
     ]) {
       expect(html).toContain(marker)
     }
@@ -107,6 +107,78 @@ describe('server-rendered pages', () => {
     expect(html).toContain('1 file')
     expect(html).toContain('03:00')
     expect(html).toContain('recording')
+  })
+
+  test('home ranks the four creators with the most kept files', async () => {
+    const { app, store, dir } = setup()
+    const counts = [
+      ['heavy', 4, 400],
+      ['mid', 3, 300],
+      ['light', 2, 200],
+      ['extra', 1, 200],
+      ['spare', 1, 100],
+    ] as const
+    let index = 0
+    for (const [handle, count, bytes] of counts) {
+      for (let n = 0; n < count; n += 1) {
+        index += 1
+        addRecording(store, dir, {
+          id: `rec-${index}`,
+          uniqueId: handle,
+          file: `${handle}_${index}.mp4`,
+          bytes,
+        })
+      }
+    }
+    const html = await (await get(app, '/')).text()
+    const panel = html.slice(html.indexOf('Top creators'), html.indexOf('Latest captures'))
+    const order = ['@heavy', '@mid', '@light', '@extra', '@spare'].map((marker) => panel.indexOf(marker))
+
+    expect(order.slice(0, 4).every((position) => position > -1)).toBe(true)
+    expect([...order.slice(0, 4)].sort((a, b) => a - b)).toEqual(order.slice(0, 4))
+    expect(order[4]).toBe(-1)
+    expect(panel).toContain('4 files')
+  })
+
+  test('creator cards carry the monitor avatar and fall back to initials', async () => {
+    const { app, store, dir } = setup()
+    addMonitor(store, { uniqueId: 'avatared', avatarUrl: 'https://cdn.example.com/a.jpg' })
+    addRecording(store, dir, { uniqueId: 'avatared' })
+    addRecording(store, dir, { id: 'rec-2', uniqueId: 'plain', file: 'plain.mp4' })
+    const html = await (await get(app, '/')).text()
+    const panel = html.slice(html.indexOf('Top creators'), html.indexOf('Latest captures'))
+
+    expect(panel).toContain('class="capture-avatar" src="https://cdn.example.com/a.jpg"')
+    expect(panel.match(/class="capture-avatar"/g)?.length).toBe(1)
+    expect(panel).toContain('>PL</span>')
+  })
+
+  test('home capture cards request generated thumbnails', async () => {
+    const { app, store, dir } = setup()
+    addRecording(store, dir)
+    const html = await (await get(app, '/')).text()
+
+    expect(html).toContain('class="capture-thumb" src="/api/recordings/rec-1/thumb"')
+  })
+
+  test('week chart scales each bar to the peak day', async () => {
+    const { app, store, dir } = setup()
+    const day = 86_400_000
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    addRecording(store, dir, { bytes: 1000, startedAt: today.getTime(), endedAt: today.getTime() + 1000 })
+    addRecording(store, dir, {
+      id: 'rec-2',
+      file: 'half.mp4',
+      bytes: 500,
+      startedAt: today.getTime() - 2 * day,
+      endedAt: today.getTime() - 2 * day + 1000,
+    })
+    const html = await (await get(app, '/')).text()
+
+    expect(html).toContain('class="bar-spacer" style="flex-grow: 0"></span><span class="bar-fill" style="flex-grow: 100"')
+    expect(html).toContain('class="bar-spacer" style="flex-grow: 50"></span><span class="bar-fill" style="flex-grow: 50"')
+    expect(html).toContain('class="bar-spacer" style="flex-grow: 100"></span><span class="bar-fill" style="flex-grow: 0"')
   })
 
   test('active captures surface a recording count in the chrome', async () => {

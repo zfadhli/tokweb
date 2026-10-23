@@ -690,6 +690,7 @@ svg {
   align-items: end;
   gap: 8px;
   padding: 18px 20px 16px;
+  min-height: 176px;
 }
 
 .bar {
@@ -701,14 +702,20 @@ svg {
 
 .bar-track {
   display: flex;
-  align-items: flex-end;
-  height: 104px;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 40px;
   border-bottom: 1px solid var(--line);
+}
+
+.bar-spacer,
+.bar-fill {
+  flex: 0 1 0;
 }
 
 .bar-fill {
   width: 100%;
-  height: 4px;
+  min-height: 4px;
   border-radius: 1px 1px 0 0;
   background: var(--accent);
 }
@@ -742,43 +749,40 @@ svg {
   color: var(--accent);
 }
 
-/* ---------- watch list / status ---------- */
+/* ---------- top creators / status ---------- */
 
-.watch-list {
+.capture-grid.is-creators {
+  gap: 14px;
+  padding: 18px;
+}
+
+/* The volume column matches the creators + archive stack beside it. */
+.split.home-split {
+  align-items: stretch;
+}
+
+.home-split .panel.is-fill {
   display: flex;
+  flex: 1;
   flex-direction: column;
 }
 
-.watch-list li {
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 20px;
-  border-bottom: 1px solid var(--line-soft);
+.home-split .panel.is-fill .chart {
+  flex: 1;
+  align-items: stretch;
 }
 
-.watch-list li:last-child {
-  border-bottom: 0;
+.capture-grid.is-creators .capture-art {
+  padding-top: 100%;
 }
 
-.watch-handle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
-
-.watch-handle:hover {
-  color: var(--accent);
-}
-
-.watch-status {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+.capture-avatar {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status-dot {
