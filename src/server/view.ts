@@ -68,6 +68,10 @@ export function isPlayable(recording: Recording): boolean {
   return PLAYABLE_EXTENSIONS.includes(extension)
 }
 
+export function isAudioFile(recording: Recording): boolean {
+  return recording.file?.toLowerCase().endsWith('.m4a') ?? false
+}
+
 export function elapsedMs(recording: Recording, now = Date.now()): number {
   if (recording.endedAt) return recording.durationMs
   return Math.max(recording.durationMs, now - recording.startedAt)

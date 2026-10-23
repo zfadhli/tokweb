@@ -216,6 +216,17 @@ describe('recordings page', () => {
     }
   })
 
+  test('player renders audio element for m4a recordings and video for mp4', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-audio', uniqueId: 'aurorabeats', file: 'rec-audio.m4a', variant: 'audio' })
+    addRecording(store, { id: 'rec-video', uniqueId: 'aurorabeats' })
+    const audioPage = await (await get(app, '/recordings/rec-audio')).text()
+    expect(audioPage).toContain('<audio class="player-audio" controls preload="metadata" src="/api/recordings/rec-audio/file">')
+    expect(audioPage).not.toContain('<video')
+    const videoPage = await (await get(app, '/recordings/rec-video')).text()
+    expect(videoPage).toContain('<video class="player-video"')
+  })
+
   test('player falls back to @handle and explains missing files', async () => {
     const { app, store } = setup()
     addRecording(store, { id: 'rec-bad', uniqueId: 'northlight', title: '', state: 'failed', file: null, error: 'ffmpeg exited with code 1' })

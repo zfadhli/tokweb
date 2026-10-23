@@ -12,11 +12,9 @@ import {
   fmtDuration,
   initials,
   isActiveRecording,
+  isAudioFile,
   isPlayable,
 } from '../view'
-
-const PANEL_ATTRS =
-  'id="recordings-panel" hx-get="/partials/recordings" hx-trigger="refreshRecordings from:body, every 5s" hx-swap="innerMorph" hx-target="this"'
 
 const DELETE_CONFIRM = 'Delete this recording and its file? This cannot be undone.'
 const DELETE_BLOCKED = 'Stop the recording before deleting it.'
@@ -162,6 +160,7 @@ export function recordingsRoutes(deps: ServerDeps) {
           handle: recording.uniqueId,
           hasFile: Boolean(recording.file),
           playable: isPlayable(recording),
+          audio: isAudioFile(recording),
           isActive: active,
           state: recording.state,
           date: fmtDate(recording.startedAt),

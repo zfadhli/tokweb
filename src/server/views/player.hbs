@@ -15,7 +15,11 @@
 
 <div class="player-shell">
   {{#if playable}}
+  {{#if audio}}
+  <audio class="player-audio" controls preload="metadata" src="/api/recordings/{{id}}/file"></audio>
+  {{else}}
   <video class="player-video" controls preload="metadata" src="/api/recordings/{{id}}/file"></video>
+  {{/if}}
   {{else}}
   <section class="panel">
     <div class="empty">
