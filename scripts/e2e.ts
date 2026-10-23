@@ -68,7 +68,7 @@ async function inProcess(): Promise<void> {
   const dir = tempDir('tokweb-e2e-')
   const sample = await makeSample(dir)
   const store = new Store({ dataDir: join(dir, 'data'), outputDir: join(dir, 'out') }).load()
-  store.state.settings.keepFlv = false
+  store.state.settings.keepSource = false
   store.save()
   const room: LiveRoom = {
     status: 'live',
@@ -134,6 +134,7 @@ async function inProcess(): Promise<void> {
   const filePath = join(store.state.settings.outputDir, fileName)
   assert.ok(await Bun.file(filePath).exists())
   assert.ok(Bun.file(filePath).size > 1000)
+  assert.equal(await Bun.file(filePath.replace(/\.mp4$/, '.ts')).exists(), false)
   console.log(`✓ ffmpeg captured ${recording.file} (${recording.bytes} bytes)`)
 
   const ranged = await app.handle(

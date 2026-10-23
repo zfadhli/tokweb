@@ -378,7 +378,7 @@ export class Engine {
         bitrate: settings.bitrate || null,
         proxy: settings.proxy,
         userAgent: settings.userAgent,
-        keepFlv: settings.keepFlv,
+        keepSource: settings.keepSource,
         audioOnly: monitor.variant === 'audio',
         onProgress: (progress) => {
           recording.bytes = progress.bytes
@@ -428,7 +428,7 @@ export class Engine {
         void this.finalize(active, {
           ok: false,
           file: null,
-          flvFile: null,
+          sourceFile: null,
           bytes: 0,
           durationMs: 0,
           code: null,
@@ -524,7 +524,7 @@ export class Engine {
   private availableBase(dir: string, base: string): string {
     let candidate = base
     let counter = 2
-    while (['flv', 'mp4', 'm4a'].some((ext) => existsSync(join(dir, `${candidate}.${ext}`)))) {
+    while (['ts', 'mp4', 'm4a'].some((ext) => existsSync(join(dir, `${candidate}.${ext}`)))) {
       candidate = `${base}-${counter}`
       counter += 1
     }

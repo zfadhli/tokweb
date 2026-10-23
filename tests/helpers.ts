@@ -51,7 +51,7 @@ export function fakeRecorderFactory(): { factory: RecorderFactory; handles: Fake
       settle({
         ok: true,
         file: `${options.outputBase}.mp4`,
-        flvFile: `${options.outputBase}.flv`,
+        sourceFile: `${options.outputBase}.ts`,
         bytes: 2048,
         durationMs: 5_000,
         code: 0,
@@ -66,7 +66,7 @@ export function fakeRecorderFactory(): { factory: RecorderFactory; handles: Fake
     }
     handles.push(control)
     return {
-      flvPath: `${options.outputBase}.flv`,
+      sourcePath: `${options.outputBase}.ts`,
       stop: async () => {
         control.stopped = true
         finish()

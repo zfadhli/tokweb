@@ -45,7 +45,7 @@ async function makeSample(path: string): Promise<void> {
 }
 
 describe('ffmpeg recorder', () => {
-  test('records, reports progress, remuxes to mp4, and removes the flv', async () => {
+  test('records, reports progress, remuxes to mp4, and removes the ts', async () => {
     if (!ffmpeg) return
     const dir = tempDir()
     const sample = join(dir, 'sample.flv')
@@ -57,7 +57,7 @@ describe('ffmpeg recorder', () => {
       url: sample,
       outputBase,
       durationSec: 3,
-      keepFlv: false,
+      keepSource: false,
       onProgress: (event) => progress.push(event.bytes),
     })
     const result = await handle.done
@@ -67,7 +67,7 @@ describe('ffmpeg recorder', () => {
     expect(result.file).toBe(`${outputBase}.mp4`)
     expect(existsSync(result.file!)).toBe(true)
     expect(statSync(result.file!).size).toBeGreaterThan(1000)
-    expect(existsSync(`${outputBase}.flv`)).toBe(false)
+    expect(existsSync(`${outputBase}.ts`)).toBe(false)
     expect(progress.length).toBeGreaterThan(0)
   }, 30_000)
 
@@ -83,7 +83,7 @@ describe('ffmpeg recorder', () => {
     await mkfifo.exited
 
     const outputBase = join(dir, 'out', 'stopped')
-    const handle = startRecorder({ url: fifo, outputBase, keepFlv: true })
+    const handle = startRecorder({ url: fifo, outputBase, keepSource: true })
     // Hold the fifo open while ffmpeg is stopped, like a live feed.
     const pump = spawn({ cmd: ['sh', '-c', `(cat "${sample}"; sleep 2) > "${fifo}"`], stdout: 'ignore', stderr: 'ignore' })
     await new Promise((resolve) => setTimeout(resolve, 700))
@@ -91,6 +91,6 @@ describe('ffmpeg recorder', () => {
     await pump.exited
     expect(result.ok).toBe(true)
     expect(result.bytes).toBeGreaterThan(0)
-    expect(existsSync(`${outputBase}.flv`)).toBe(true)
+    expect(existsSync(`${outputBase}.ts`)).toBe(true)
   }, 30_000)
 })

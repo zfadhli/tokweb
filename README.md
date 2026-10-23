@@ -36,9 +36,9 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
 1. Resolve the creator through TikTok's room API, with an HTML fallback when the API is
    blocked.
 2. Pick the requested feed: `best`, `hd`, `sd`, or `audio`.
-3. Spawn ffmpeg with `-c copy` into an intermediate FLV. No quality loss, low CPU.
-4. On stop, duration cap, or stream end, remux to MP4 (`+faststart`) and delete the FLV.
-   Set a bitrate in Settings to re-encode instead. If remux fails, the FLV is kept.
+3. Spawn ffmpeg with `-c copy` into an intermediate TS. No quality loss, low CPU.
+4. On stop, duration cap, or stream end, remux to MP4 (`+faststart`) and delete the TS.
+   Set a bitrate in Settings to re-encode instead. If remux fails, the TS is kept.
 5. Update the journal, reconcile interrupted jobs on boot, and serve the archive with
    byte-range playback.
 

@@ -115,7 +115,7 @@ async function updateSettings(deps: ServerDeps, body: unknown): Promise<void> {
     deps.client.setCookies(input.cookies)
   }
   deps.client.setNetwork({ proxy: settings.proxy, userAgent: settings.userAgent })
-  if (typeof input.keepFlv === 'boolean') settings.keepFlv = input.keepFlv
+  if (typeof input.keepSource === 'boolean') settings.keepSource = input.keepSource
   if (typeof input.bitrate === 'string') {
     const value = input.bitrate.trim()
     settings.bitrate = /^(\d+(\.\d+)?[kKmM]?)?$/.test(value) ? value : settings.bitrate

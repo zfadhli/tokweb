@@ -18,3 +18,4 @@ V3	verify	real live resolve + 6 s capture	verified	.crew/evidence/probe-live.txt
 V4	verify	visual review	SHIP after 5 passes	.crew/evidence/review.md	experience-first
 O1	open	followers mode against a logged-in account	inconclusive	.crew/tickets.md	-
 O2	open	long-session capture beyond 6 s	inferred	.crew/tickets.md	-
+E1	change	.ts intermediate capture	SHIP	bun test 31 pass; e2e VERIFIED; SIGKILL'd capture remuxes clean (crash.ts 3.99s, exit 0)	prove-it-works

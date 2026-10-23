@@ -57,7 +57,7 @@ describe('Store', () => {
         defaultVariant: 'best',
         defaultIntervalSec: 60,
         bitrate: '',
-        keepFlv: false,
+        keepSource: false,
       },
       monitors: [],
       recordings: [

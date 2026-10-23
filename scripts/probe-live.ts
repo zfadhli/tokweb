@@ -49,12 +49,12 @@ try {
   console.log('RESOLVER VERIFIED')
   if (recordSec > 0) {
     const out = join('/tmp', 'tokweb-probe', `probe_${Date.now()}`)
-    console.log(`recording ${recordSec}s to ${out}.flv…`)
+    console.log(`recording ${recordSec}s to ${out}.ts…`)
     const handle = startRecorder({
       url: source.url,
       outputBase: out,
       durationSec: recordSec,
-      keepFlv: true,
+      keepSource: true,
       onProgress: (progress) => {
         process.stdout.write(`\r${(progress.bytes / 1024 / 1024).toFixed(2)} MB`)
       },

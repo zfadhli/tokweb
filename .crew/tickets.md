@@ -56,3 +56,10 @@ capture is playable.
 - Real capture was verified with one creator (`aljazeera`, 6 s). Long-session behavior
   beyond the fixture duration is inferred from ffmpeg's stream-copy lifecycle.
 - TikTok can rate-limit the resolver per IP; cookies/proxy are the documented remedy.
+
+## Phase F: crash-safe intermediate
+
+- [x] Capture to `.ts` (`-f mpegts`) instead of FLV, remux to MP4 as before; setting and
+  recorder fields renamed `keepSource` / `sourcePath` / `sourceFile`.
+- [x] Crash proof: `kill -9` mid-capture leaves a `.ts` that remuxes to MP4 with exit 0 and
+  no warnings (3.99 s of a 20 s source). Evidence: `.crew/evidence/ts-crash.txt`.

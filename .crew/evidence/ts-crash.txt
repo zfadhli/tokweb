@@ -1,0 +1,6 @@
+$ bash /tmp/ts-crash.sh    # 20 s source, real-time paced, kill -9 after 4 s
+-rw-r--r-- 1 envs4 envs4 1048576 Oct 23 15:41 crash.ts
+remux_exit=0
+duration=3.989333
+size=1000568
+--- warnings ---

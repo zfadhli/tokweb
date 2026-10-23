@@ -17,7 +17,7 @@ export interface RecorderOptions {
   bitrate?: string | null
   proxy?: string
   userAgent?: string
-  keepFlv?: boolean
+  keepSource?: boolean
   audioOnly?: boolean
   onProgress?: (progress: RecorderProgress) => void
 }
@@ -26,7 +26,7 @@ export interface RecorderResult {
   ok: boolean
   /** Playable file, relative to the output directory. */
   file: string | null
-  flvFile: string | null
+  sourceFile: string | null
   bytes: number
   durationMs: number
   code: number | null
@@ -34,7 +34,7 @@ export interface RecorderResult {
 }
 
 export interface RecorderHandle {
-  readonly flvPath: string
+  readonly sourcePath: string
   stop(): Promise<RecorderResult>
   readonly done: Promise<RecorderResult>
 }
@@ -81,9 +81,9 @@ async function runFfmpeg(args: string[], env: Record<string, string>): Promise<{
 
 export function startRecorder(options: RecorderOptions): RecorderHandle {
   const ffmpegPath = options.ffmpegPath || 'ffmpeg'
-  const flvPath = `${options.outputBase}.flv`
-  mkdirSync(dirname(flvPath), { recursive: true })
-  if (existsSync(flvPath)) unlinkSync(flvPath)
+  const sourcePath = `${options.outputBase}.ts`
+  mkdirSync(dirname(sourcePath), { recursive: true })
+  if (existsSync(sourcePath)) unlinkSync(sourcePath)
 
   const args = baseArgs(ffmpegPath)
   if (options.userAgent) args.push('-user_agent', options.userAgent)
@@ -91,7 +91,7 @@ export function startRecorder(options: RecorderOptions): RecorderHandle {
   args.push('-i', options.url)
   if (options.durationSec && options.durationSec > 0) args.push('-t', String(options.durationSec))
   if (options.audioOnly) args.push('-vn')
-  args.push('-c', 'copy', '-f', 'flv', flvPath)
+  args.push('-c', 'copy', '-f', 'mpegts', sourcePath)
 
   const env = {
     ...process.env,
@@ -141,15 +141,15 @@ export function startRecorder(options: RecorderOptions): RecorderHandle {
   }
 
   const finalize = async (code: number | null): Promise<RecorderResult> => {
-    const flvExists = existsSync(flvPath)
-    const flvBytes = flvExists ? statSync(flvPath).size : 0
+    const sourceExists = existsSync(sourcePath)
+    const sourceBytes = sourceExists ? statSync(sourcePath).size : 0
     const durationMs = lastProgress.durationMs
-    if (flvBytes === 0) {
-      if (flvExists) unlinkSync(flvPath)
+    if (sourceBytes === 0) {
+      if (sourceExists) unlinkSync(sourcePath)
       return {
         ok: false,
         file: null,
-        flvFile: null,
+        sourceFile: null,
         bytes: 0,
         durationMs,
         code,
@@ -167,10 +167,10 @@ export function startRecorder(options: RecorderOptions): RecorderHandle {
       const transcode = options.audioOnly
         ? ['-vn', '-c:a', 'aac', '-b:a', options.bitrate, '-f', 'ipod', finalPath]
         : ['-c:v', 'libx264', '-preset', 'veryfast', '-b:v', options.bitrate, '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-f', 'mp4', finalPath]
-      const result = await runFfmpeg([ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', flvPath, ...transcode], env)
+      const result = await runFfmpeg([ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', sourcePath, ...transcode], env)
       if (!result.ok) stderr = `${stderr}\n${result.error}`.trim()
     } else {
-      const result = await runFfmpeg([ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', flvPath, ...containerArgs], env)
+      const result = await runFfmpeg([ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', sourcePath, ...containerArgs], env)
       if (!result.ok) stderr = `${stderr}\n${result.error}`.trim()
     }
 
@@ -178,34 +178,34 @@ export function startRecorder(options: RecorderOptions): RecorderHandle {
     if (!usable && options.bitrate) {
       // A failed re-encode still leaves the original capture usable.
       const remux = await runFfmpeg(
-        [ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', flvPath, ...containerArgs],
+        [ffmpegPath, '-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', sourcePath, ...containerArgs],
         env,
       )
       if (!remux.ok) stderr = `${stderr}\n${remux.error}`.trim()
     }
 
     const finalExists = existsSync(finalPath) && statSync(finalPath).size > 0
-    const file = finalExists ? finalPath : flvPath
-    if (finalExists && !options.keepFlv) {
+    const file = finalExists ? finalPath : sourcePath
+    if (finalExists && !options.keepSource) {
       try {
-        unlinkSync(flvPath)
+        unlinkSync(sourcePath)
       } catch {
         // The final file is already safe.
       }
     }
 
-    const ok = (code === 0 || stopRequested) && (finalExists || flvBytes > 0)
+    const ok = (code === 0 || stopRequested) && (finalExists || sourceBytes > 0)
     return {
       ok,
       file,
-      flvFile: existsSync(flvPath) ? flvPath : null,
-      bytes: existsSync(file) ? statSync(file).size : flvBytes,
+      sourceFile: existsSync(sourcePath) ? sourcePath : null,
+      bytes: existsSync(file) ? statSync(file).size : sourceBytes,
       durationMs,
       code,
       error: ok
         ? finalExists
           ? null
-          : 'MP4 remux failed; kept the FLV capture'
+          : 'MP4 remux failed; kept the TS capture'
         : stderr.trim() || (finalExists ? 'ffmpeg stopped unexpectedly' : 'Could not finalize the recording'),
     }
   }
@@ -240,5 +240,5 @@ export function startRecorder(options: RecorderOptions): RecorderHandle {
     }
   }
 
-  return { flvPath, stop, done }
+  return { sourcePath, stop, done }
 }

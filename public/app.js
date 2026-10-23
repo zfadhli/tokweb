@@ -415,7 +415,7 @@ function fillSettings() {
   $('#set-bitrate').value = settings.bitrate ?? ''
   $('#set-proxy').value = settings.proxy ?? ''
   $('#set-ua').value = settings.userAgent ?? ''
-  $('#set-keep-flv').checked = Boolean(settings.keepFlv)
+  $('#set-keep-source').checked = Boolean(settings.keepSource)
   $('#set-cookies').value = ''
   $('#set-clear-cookies').checked = false
   $('#cookie-note').textContent = settings.hasCookies ? 'saved' : 'not set'
@@ -487,7 +487,7 @@ async function saveSettings(event) {
     bitrate: $('#set-bitrate').value.trim(),
     proxy: $('#set-proxy').value.trim(),
     userAgent: $('#set-ua').value.trim(),
-    keepFlv: $('#set-keep-flv').checked,
+    keepSource: $('#set-keep-source').checked,
   }
   const cookies = $('#set-cookies').value.trim()
   if (cookies) payload.cookies = cookies

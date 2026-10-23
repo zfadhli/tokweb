@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultVariant: 'best',
   defaultIntervalSec: 60,
   bitrate: '',
-  keepFlv: false,
+  keepSource: false,
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -41,7 +41,7 @@ function loadedSettings(raw: unknown, fallback: Settings): Settings {
     defaultVariant: pick('defaultVariant'),
     defaultIntervalSec: Math.max(10, Number(pick('defaultIntervalSec')) || 60),
     bitrate: pick('bitrate'),
-    keepFlv: Boolean(pick('keepFlv')),
+    keepSource: Boolean(pick('keepSource')),
   }
 }
 

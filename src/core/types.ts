@@ -110,7 +110,7 @@ export interface Settings {
   defaultVariant: Variant
   defaultIntervalSec: number
   bitrate: string
-  keepFlv: boolean
+  keepSource: boolean
 }
 
 export interface AppState {
