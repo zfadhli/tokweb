@@ -16,12 +16,7 @@ import { normalizeInput, selectSource } from './tiktok/client'
 import { startRecorder, type RecorderFactory, type RecorderHandle, type RecorderResult } from './recorder/ffmpeg'
 import type { Store } from './store'
 
-export interface ActivityEvent {
-  id: string
-  at: number
-  level: 'info' | 'warn' | 'error'
-  message: string
-}
+const BOOT_STAGGER_WINDOW_MS = 45_000 // total spread is capped so a large watchlist still gets checked in under a minute.
 
 export class EngineError extends Error {
   readonly status: number
@@ -45,6 +40,7 @@ export interface EngineOptions {
   recorder?: RecorderFactory
   now?: () => number
   followLimit?: number
+  bootStaggerMs?: number
 }
 
 export class Engine {
@@ -53,10 +49,12 @@ export class Engine {
   private readonly recorder: RecorderFactory
   private readonly now: () => number
   private readonly followLimit: number
+  private readonly bootStaggerMs: number
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly awaitingFirstTick = new Set<string>()
+  private bootSlot = 0
   private readonly active = new Map<string, Active>()
   private readonly byRecording = new Map<string, Active>()
-  private readonly events: ActivityEvent[] = []
   private progressTimer: ReturnType<typeof setInterval> | null = null
   private dirty = false
   private stopped = true
@@ -67,18 +65,24 @@ export class Engine {
     this.recorder = options.recorder ?? startRecorder
     this.now = options.now ?? Date.now
     this.followLimit = options.followLimit ?? 10
+    this.bootStaggerMs = options.bootStaggerMs ?? 1_500
   }
 
   start(): void {
     this.stopped = false
     let repaired = false
+    const sweepTotal = this.store.state.monitors.filter(
+      (monitor) => monitor.mode !== 'manual' && monitor.state !== 'stopped',
+    ).length
     for (const monitor of this.store.state.monitors) {
       if (monitor.state === 'recording' || monitor.state === 'checking') {
         monitor.state = monitor.mode === 'manual' ? 'idle' : 'waiting'
         monitor.recordingId = null
         repaired = true
       }
-      if (monitor.mode !== 'manual' && monitor.state !== 'stopped') this.schedule(monitor.id, 0)
+      if (monitor.mode !== 'manual' && monitor.state !== 'stopped') {
+        this.scheduleFirstCheck(monitor.id, sweepTotal)
+      }
     }
     if (repaired) this.store.save()
     this.progressTimer = setInterval(() => {
@@ -101,10 +105,6 @@ export class Engine {
 
   get activeCount(): number {
     return this.active.size
-  }
-
-  get activity(): readonly ActivityEvent[] {
-    return this.events
   }
 
   async addMonitor(input: MonitorInput): Promise<Monitor> {
@@ -163,7 +163,6 @@ export class Engine {
     }
     this.store.state.monitors.push(monitor)
     this.store.save()
-    this.log('info', `Added @${uniqueId ?? roomId} · ${mode}`)
     this.reschedule(monitor)
     return monitor
   }
@@ -206,12 +205,12 @@ export class Engine {
     const monitor = this.store.monitor(id)
     if (!monitor) return false
     this.clearTimer(id)
+    this.forgetFirstCheck(id)
     for (const active of [...this.active.values()]) {
       if (active.monitorId === id) await this.stopActive(active)
     }
     this.store.state.monitors = this.store.state.monitors.filter((item) => item.id !== id)
     this.store.save()
-    this.log('info', `Removed @${monitor.uniqueId ?? monitor.roomId}`)
     return true
   }
 
@@ -275,6 +274,7 @@ export class Engine {
 
   private async tick(id: string): Promise<void> {
     this.timers.delete(id)
+    this.forgetFirstCheck(id)
     if (this.stopped) return
     const monitor = this.store.monitor(id)
     if (!monitor || monitor.mode === 'manual') return
@@ -330,8 +330,8 @@ export class Engine {
           await this.begin(monitor, room)
           started += 1
         }
-      } catch (error) {
-        this.log('warn', `@${user.uniqueId}: ${errorMessage(error)}`)
+      } catch {
+        continue
       }
     }
     monitor.live = liveCount > 0
@@ -419,7 +419,6 @@ export class Engine {
     }
     this.active.set(key, active)
     this.byRecording.set(recording.id, active)
-    this.log('info', `Recording @${room.uniqueId} · ${source.quality} ${source.format}`)
     this.store.save()
 
     void handle.done
@@ -461,10 +460,6 @@ export class Engine {
       if (recording.state === 'failed') monitor.lastError = result.error
       monitor.updatedAt = endedAt
     }
-    this.log(
-      recording.state === 'failed' ? 'error' : 'info',
-      `${recording.state} @${recording.uniqueId} · ${formatBytes(result.bytes)}${result.error ? ` · ${result.error}` : ''}`,
-    )
     this.dirty = false
     this.store.save()
   }
@@ -489,7 +484,6 @@ export class Engine {
     monitor.state = 'error'
     monitor.lastError = errorMessage(error)
     monitor.lastCheckedAt = this.now()
-    this.log('error', `@${monitor.uniqueId ?? monitor.roomId}: ${monitor.lastError}`)
   }
 
   private byUser(uniqueId: string): Active | undefined {
@@ -502,7 +496,24 @@ export class Engine {
 
   private reschedule(monitor: Monitor): void {
     this.clearTimer(monitor.id)
-    if (monitor.mode !== 'manual' && !this.stopped) this.schedule(monitor.id, 0)
+    if (monitor.mode !== 'manual' && !this.stopped) {
+      this.scheduleFirstCheck(monitor.id, this.awaitingFirstTick.size + 1)
+    }
+  }
+
+  private scheduleFirstCheck(id: string, total: number): void {
+    const step =
+      total > 1 ? Math.min(this.bootStaggerMs, BOOT_STAGGER_WINDOW_MS / (total - 1)) : this.bootStaggerMs
+    // Monotonic slot, not set size: a monitor added mid-sweep must not reuse a slot that already fired.
+    const slot = this.bootSlot
+    this.bootSlot += 1
+    this.awaitingFirstTick.add(id)
+    this.schedule(id, slot * step)
+  }
+
+  private forgetFirstCheck(id: string): void {
+    this.awaitingFirstTick.delete(id)
+    if (this.awaitingFirstTick.size === 0) this.bootSlot = 0
   }
 
   private schedule(id: string, delay: number): void {
@@ -529,11 +540,6 @@ export class Engine {
       counter += 1
     }
     return join(dir, candidate)
-  }
-
-  private log(level: ActivityEvent['level'], message: string): void {
-    this.events.unshift({ id: Bun.randomUUIDv7(), at: this.now(), level, message })
-    if (this.events.length > 100) this.events.length = 100
   }
 }
 

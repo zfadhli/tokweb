@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'bun:test'
 import { join } from 'node:path'
-import { Engine } from '../src/engine'
+import { Engine, type EngineOptions } from '../src/engine'
 import { Store } from '../src/store'
 import { FakeResolver, fakeRecorderFactory, liveRoom, tempDir } from './helpers'
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-function setup(room = liveRoom()) {
+function setup(room = liveRoom(), engineOptions: EngineOptions = {}) {
   const dir = tempDir()
   const store = new Store({ dataDir: join(dir, 'data'), outputDir: join(dir, 'out') }).load()
   const resolver = new FakeResolver(room)
   const recorder = fakeRecorderFactory()
-  const engine = new Engine(store, resolver, { recorder: recorder.factory })
+  const engine = new Engine(store, resolver, { recorder: recorder.factory, ...engineOptions })
   return { dir, store, resolver, recorder, engine }
 }
 
@@ -83,6 +83,70 @@ describe('Engine', () => {
     expect(second.id).toBe(first.id)
     expect(store.state.monitors).toHaveLength(1)
     expect(second.mode).toBe('automatic')
+    await engine.stop()
+  })
+})
+
+describe('Engine boot stagger', () => {
+  async function seedThree(engine: Engine) {
+    for (const uniqueId of ['one', 'two', 'three']) {
+      await engine.addMonitor({ uniqueId, mode: 'automatic', intervalSec: 30 })
+    }
+  }
+
+  test('spreads the first checks of a boot sweep', async () => {
+    const { resolver, engine } = setup(liveRoom({ status: 'offline' }), { bootStaggerMs: 80 })
+    await seedThree(engine)
+    engine.start()
+    await sleep(320)
+
+    expect(resolver.calls).toBe(3)
+    const gaps = resolver.callTimes.slice(1).map((at, index) => at - resolver.callTimes[index]!)
+    const span = resolver.callTimes.at(-1)! - resolver.callTimes[0]!
+    console.log('boot stagger gaps ms:', gaps.join(', '), '| span ms:', span)
+    expect(span).toBeGreaterThan(100)
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(40)
+    await engine.stop()
+  })
+
+  test('bootStaggerMs 0 disables the spread', async () => {
+    const { resolver, engine } = setup(liveRoom({ status: 'offline' }), { bootStaggerMs: 0 })
+    await seedThree(engine)
+    engine.start()
+    await sleep(60)
+
+    expect(resolver.calls).toBe(3)
+    const span = resolver.callTimes.at(-1)! - resolver.callTimes[0]!
+    console.log('stagger off span ms:', span)
+    expect(span).toBeLessThan(50)
+    await engine.stop()
+  })
+
+  test('staggers monitors seeded after boot, the CLI path', async () => {
+    const { resolver, engine } = setup(liveRoom({ status: 'offline' }), { bootStaggerMs: 80 })
+    engine.start()
+    await seedThree(engine)
+    await sleep(320)
+
+    expect(resolver.calls).toBe(3)
+    const gaps = resolver.callTimes.slice(1).map((at, index) => at - resolver.callTimes[index]!)
+    console.log('seed stagger gaps ms:', gaps.join(', '))
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(40)
+    await engine.stop()
+  })
+
+  test('a monitor rescheduled after its first check fires immediately', async () => {
+    const { store, resolver, engine } = setup(liveRoom({ status: 'offline' }), { bootStaggerMs: 80 })
+    await seedThree(engine)
+    engine.start()
+    await sleep(320)
+    const monitor = store.state.monitors.find((item) => item.uniqueId === 'one')!
+
+    const before = resolver.callTimes.length
+    engine.updateMonitor(monitor.id, { intervalSec: 45 })
+    await sleep(30)
+
+    expect(resolver.callTimes.length).toBe(before + 1)
     await engine.stop()
   })
 })

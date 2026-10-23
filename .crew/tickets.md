@@ -63,3 +63,23 @@ capture is playable.
   recorder fields renamed `keepSource` / `sourcePath` / `sourceFile`.
 - [x] Crash proof: `kill -9` mid-capture leaves a `.ts` that remuxes to MP4 with exit 0 and
   no warnings (3.99 s of a 20 s source). Evidence: `.crew/evidence/ts-crash.txt`.
+
+## Phase G: watchlist columns
+
+- [x] Console / Activity panel deleted from the dashboard; snapshot no longer carries
+  `activity`, engine activity feed removed with it.
+- [x] Watchlist split into Offline / Live / Recording columns, stacking at <=1080px.
+- [x] Fixed the `.status.recording` vs archive `.recording` class collision found in
+  vision review. Evidence: `.crew/evidence/ui-columns.md`,
+  `.crew/evidence/ui-columns.png`, `.crew/evidence/ui-columns-narrow.png`.
+
+## Phase H: staggered resume
+
+- [x] First live check of each monitor is spread by `bootStaggerMs` (default 1.5 s,
+  0 disables), capped at 45 s per sweep, so a restart or a `-user a,b,c` seed does not
+  fire every TikTok lookup in the same second. Monotonic slot counter, so a monitor
+  added mid-sweep cannot reuse a slot that already fired.
+- [x] Tests cover boot sweep, post-start seeding (CLI path), disabling, and a reschedule
+  after the first check firing immediately. Evidence: `.crew/evidence/boot-stagger.md`.
+- [ ] Followers mode still resolves up to `followLimit` (10) followed creators back to
+  back inside one tick with no gap. Not covered by this change.

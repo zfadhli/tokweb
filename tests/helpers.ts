@@ -13,6 +13,7 @@ export class FakeResolver implements LiveResolver {
   room: LiveRoom
   followingUsers: FollowingUser[] = []
   calls = 0
+  callTimes: number[] = []
   error: Error | null = null
 
   constructor(room: LiveRoom) {
@@ -21,6 +22,7 @@ export class FakeResolver implements LiveResolver {
 
   async resolve(_input: ResolveInput): Promise<LiveRoom> {
     this.calls += 1
+    this.callTimes.push(Date.now())
     if (this.error) throw this.error
     return this.room
   }
