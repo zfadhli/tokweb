@@ -1,4 +1,5 @@
 import { isAbsolute, join, resolve } from "node:path";
+import { sanitizeCookieHeader } from "../tiktok/client";
 import type { Variant } from "../core/types";
 import { VARIANTS } from "../core/types";
 import type { Store } from "../store";
@@ -39,9 +40,11 @@ export function mergeCookies(
     if (!next) delete merged[name];
     else merged[name] = next;
   }
-  return Object.entries(merged)
-    .map(([name, value]) => `${name}=${value}`)
-    .join("; ");
+  return sanitizeCookieHeader(
+    Object.entries(merged)
+      .map(([name, value]) => `${name}=${value}`)
+      .join("; "),
+  );
 }
 
 export function publicSettings(store: Store): Record<string, unknown> {

@@ -3,6 +3,8 @@ import { join } from "node:path";
 import {
   TikTokClient,
   TikTokError,
+  cookieHeader,
+  sanitizeCookieHeader,
   type FetchLike,
 } from "../src/tiktok/client";
 import { desktopUserAgent, transportFetch } from "../src/tiktok/transport";
@@ -204,6 +206,58 @@ describe("TikTok client", () => {
     }
     expect(error).toBeInstanceOf(TikTokError);
     expect((error as TikTokError).kind).toBe("parse");
+  });
+});
+
+describe("cookie sanitization", () => {
+  test("a pasted multi-line header becomes one line with real pairs", () => {
+    const header = cookieHeader("ttwid=abc\nsessionid=def");
+    expect(header).toBe("ttwid=abc; sessionid=def");
+    expect(header).not.toContain("\n");
+    expect(header).not.toMatch(/[\u0000-\u001f\u007f]/);
+  });
+
+  test("sanitizeCookieHeader drops bad names, empty values, and dupes", () => {
+    expect(sanitizeCookieHeader("b=2; a=1; b=9")).toBe("b=2; a=1");
+    expect(sanitizeCookieHeader("bad name=x; ok=1; empty=; novalue")).toBe(
+      "ok=1",
+    );
+    expect(sanitizeCookieHeader("a=x\u0000y")).toBe("a=xy");
+    expect(sanitizeCookieHeader("sessionid=ab\ncd")).toBe("sessionid=abcd");
+    expect(sanitizeCookieHeader("; ;")).toBe("");
+  });
+
+  test("a client with newline-bearing cookies sends a clean header", async () => {
+    const seen: string[] = [];
+    const client = new TikTokClient({
+      retries: 1,
+      cookies: "ttwid=abc\nsessionid=def",
+      fetch: async (url, init) => {
+        seen.push(new Headers(init?.headers).get("cookie") ?? "");
+        if (url === "https://www.tiktok.com/")
+          return new Response("<html></html>", { status: 200 });
+        if (url.includes("api-live"))
+          return new Response(liveApi, { status: 200 });
+        return new Response("", { status: 404 });
+      },
+    });
+    const room = await client.resolve({ uniqueId: "streamer" });
+    expect(room.status).toBe("live");
+    expect(seen.length).toBeGreaterThan(0);
+    for (const header of seen) {
+      expect(header).not.toMatch(/[\u0000-\u001f\u007f]/);
+    }
+  });
+
+  test("a JSON-array cookie value with a newline is sanitized", () => {
+    const header = cookieHeader(
+      JSON.stringify([
+        { name: "a", value: "x\ny" },
+        { name: "b", value: "2" },
+      ]),
+    );
+    expect(header).toBe("a=xy; b=2");
+    expect(header).not.toContain("\n");
   });
 });
 

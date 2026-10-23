@@ -289,6 +289,19 @@ describe("admin page", () => {
     expect(store.state.settings.cookies).toBe("ttwid=abc123");
   });
 
+  test("a newline-bearing cookie value stores single-line and renders cleaned", async () => {
+    const { app, store } = setup();
+    const response = await putForm(app, "/admin/settings", [
+      ["cookie-sessionid", "abc\ndef"],
+    ]);
+    expect(response.status).toBe(200);
+    expect(store.state.settings.cookies).toBe("sessionid=abcdef");
+    expect(store.state.settings.cookies).not.toContain("\n");
+    const page = await (await get(app, "/admin")).text();
+    expect(page).toContain('value="abcdef"');
+    expect(page).not.toContain("abc\ndef");
+  });
+
   test("a second PUT setting only msToken keeps ttwid", async () => {
     const { app, store } = setup();
     await putForm(app, "/admin/settings", [["cookie-ttwid", "abc123"]]);

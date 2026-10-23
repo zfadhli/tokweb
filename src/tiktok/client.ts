@@ -62,6 +62,31 @@ function randomToken(length = 107): string {
   return out;
 }
 
+const COOKIE_NAME = /^[A-Za-z0-9_.\-]+$/;
+
+/**
+ * Drop anything a Cookie header cannot carry. A pasted multi-line blob is
+ * either several cookies (a newline before `name=`) or one value wrapped
+ * across lines (a newline anywhere else), and neither may reach the header.
+ */
+export function sanitizeCookieHeader(raw: string): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const normalized = raw.replace(/\r?\n(?=\s*[A-Za-z0-9_.\-]+\s*=)/g, ";");
+  for (const part of normalized.split(";")) {
+    const at = part.indexOf("=");
+    const name = (at < 0 ? part : part.slice(0, at)).trim();
+    if (!COOKIE_NAME.test(name) || seen.has(name)) continue;
+    seen.add(name);
+    const value = (at < 0 ? "" : part.slice(at + 1))
+      .replace(/[\u0000-\u0020\u007f]/g, "")
+      .trim();
+    if (!value) continue;
+    out.push(`${name}=${value}`);
+  }
+  return out.join("; ");
+}
+
 /** Accept upstream cookies.json (`[{name,value}]`), a map, or a Cookie header. */
 export function cookieHeader(input: string | undefined): string {
   const raw = input?.trim();
@@ -77,18 +102,22 @@ export function cookieHeader(input: string | undefined): string {
           const name = String(entry.name ?? "");
           if (name) pairs.push([name, String(entry.value ?? "")]);
         }
-        return pairs.map(([name, value]) => `${name}=${value}`).join("; ");
+        return sanitizeCookieHeader(
+          pairs.map(([name, value]) => `${name}=${value}`).join("; "),
+        );
       }
       if (typeof parsed === "object" && parsed !== null) {
-        return Object.entries(parsed as Record<string, unknown>)
-          .map(([name, value]) => `${name}=${String(value)}`)
-          .join("; ");
+        return sanitizeCookieHeader(
+          Object.entries(parsed as Record<string, unknown>)
+            .map(([name, value]) => `${name}=${String(value)}`)
+            .join("; "),
+        );
       }
     } catch {
       // Fall through: the caller may have pasted a raw header.
     }
   }
-  return raw;
+  return sanitizeCookieHeader(raw);
 }
 
 export function normalizeInput(input: ResolveInput): {
