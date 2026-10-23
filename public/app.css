@@ -882,19 +882,22 @@ table.data .num {
   white-space: nowrap;
 }
 
-table.data .cell-main {
+.cell-main {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
 }
 
-table.data .cell-main strong {
+.cell-main strong {
   font-size: 13px;
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-table.data .cell-main span {
+.cell-main span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1473,20 +1476,91 @@ a.htmx-request {
   flex: 1;
 }
 
-.watch-page .filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-@media (max-width: 520px) {
-  .watch-page .filter-row .btn {
-    min-height: 34px;
-  }
-}
-
 .watch-page .notice {
   margin: 0;
+}
+
+.watch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px 20px;
+  align-items: start;
+}
+
+.watch-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.watch-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.watch-column-head h2 {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.watch-column-head .count {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-column-empty {
+  margin: 0;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.watch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.watch-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.watch-card-head .user-cell {
+  flex: 1;
+  min-width: 0;
+}
+
+.watch-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .watch-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ---------- recordings ---------- */

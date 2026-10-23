@@ -38,8 +38,8 @@ function trigger(response: Response): Record<string, unknown> {
 }
 
 describe('watch page', () => {
-  test('GET /watch renders head, add form, filter, and empty state', async () => {
-    const { app } = setup()
+  test('GET /watch renders head, add form, empty state, and three columns', async () => {
+    const { app, engine } = setup()
     const response = await get(app, '/watch')
     expect(response.status).toBe(200)
     const page = await response.text()
@@ -57,12 +57,15 @@ describe('watch page', () => {
       'hx-get="/partials/users"',
       'refreshUsers from:body, every 3s',
       'innerMorph',
-      'x-data="{ filter: \'all\' }"',
-      'aria-pressed',
       'No users on watch.',
       'Add a creator above. Polling starts on the next interval.',
     ]) {
       expect(page).toContain(marker)
+    }
+    await engine.addMonitor({ uniqueId: 'gridcase' })
+    const grid = await (await get(app, '/watch')).text()
+    for (const marker of ['class="watch-grid"', '>Offline<', '>Live<', '>Recording<', 'watch-column-empty']) {
+      expect(grid).toContain(marker)
     }
   })
 
@@ -124,11 +127,10 @@ describe('watch page', () => {
       'hx-confirm="Remove @actioncase and stop any active recording?"',
       `hx-patch="/watch/${monitor.id}"`,
       'name="autoRecord"',
-      'name="variant"',
       'hx-trigger="change"',
-      '<td class="num">3 min</td>',
       'chip is-muted',
-      "x-show=\"filter === 'all' || filter === 'offline'\"",
+      'class="watch-card"',
+      'class="watch-grid"',
     ]) {
       expect(panel).toContain(marker)
     }
@@ -177,6 +179,31 @@ describe('watch page', () => {
     expect((await form(app, `/watch/${monitor.id}/stop`, 'POST', {})).status).toBe(204)
     panel = await (await get(app, '/partials/users')).text()
     expect(panel).not.toContain(`/watch/${monitor.id}/stop`)
+  })
+
+  test('columns group monitors by bucket', async () => {
+    const { app, engine } = setup()
+    await engine.addMonitor({ uniqueId: 'offcase' })
+    const live = await engine.addMonitor({ uniqueId: 'livecase' })
+    await engine.check(live.id)
+    const recording = await engine.addMonitor({ uniqueId: 'reccase' })
+    await engine.recordNow(recording.id)
+    const panel = await (await get(app, '/partials/users')).text()
+    const segments = panel.split('<section class="watch-column"')
+    expect(segments).toHaveLength(4)
+    const [, offlineCol, liveCol, recordingCol] = segments
+    expect(offlineCol).toContain('<h2>Offline</h2>')
+    expect(liveCol).toContain('<h2>Live</h2>')
+    expect(recordingCol).toContain('<h2>Recording</h2>')
+    expect(offlineCol).toContain('@offcase')
+    expect(offlineCol).not.toContain('@livecase')
+    expect(offlineCol).not.toContain('@reccase')
+    expect(liveCol).toContain('@livecase')
+    expect(liveCol).not.toContain('@offcase')
+    expect(liveCol).not.toContain('@reccase')
+    expect(recordingCol).toContain('@reccase')
+    expect(recordingCol).not.toContain('@offcase')
+    expect(recordingCol).not.toContain('@livecase')
   })
 
   test('delete removes the monitor and toasts', async () => {

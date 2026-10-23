@@ -4,7 +4,6 @@ import type { ServerDeps } from '../deps'
 import { html, renderPage, renderPartial } from '../render'
 import type { PageChrome } from '../render'
 import type { Monitor, Variant } from '../../core/types'
-import { VARIANTS } from '../../core/types'
 import { chrome } from './home'
 import { displayHandle, initials, monitorStatus } from '../view'
 
@@ -20,13 +19,7 @@ export function parseTarget(raw: unknown): { uniqueId?: string; url?: string; ro
   return uniqueId ? { uniqueId } : null
 }
 
-type Bucket = 'live' | 'recording' | 'offline'
-
-interface VariantOption {
-  value: string
-  label: string
-  selected: boolean
-}
+type Bucket = 'offline' | 'live' | 'recording'
 
 interface WatchRow {
   id: string
@@ -41,28 +34,33 @@ interface WatchRow {
   bucket: Bucket
   isRecording: boolean
   autoRecord: boolean
-  intervalMin: number
-  variant: Variant
-  variants: VariantOption[]
   confirm: string
+}
+
+interface WatchColumn {
+  key: Bucket
+  label: string
+  count: number
+  rows: WatchRow[]
 }
 
 interface WatchPanel {
   notice: string | null
-  rows: WatchRow[]
-  counts: Record<'all' | Bucket, number>
+  total: number
+  columns: WatchColumn[]
 }
 
 function bucketFor(monitor: Monitor): Bucket {
   if (monitor.state === 'recording' || monitor.recordingId) return 'recording'
-  return monitor.live ? 'live' : 'offline'
+  if (monitor.live) return 'live'
+  return 'offline'
 }
 
 function rowView(monitor: Monitor): WatchRow {
   const status = monitorStatus(monitor)
-  const bucket = bucketFor(monitor)
   const handle = displayHandle(monitor)
   const live = status.kind === 'live' || status.kind === 'recording'
+  const bucket = bucketFor(monitor)
   return {
     id: monitor.id,
     handle,
@@ -78,18 +76,24 @@ function rowView(monitor: Monitor): WatchRow {
     bucket,
     isRecording: bucket === 'recording',
     autoRecord: monitor.autoRecord,
-    intervalMin: Math.max(1, Math.round(monitor.intervalSec / 60)),
-    variant: monitor.variant,
-    variants: VARIANTS.map((value) => ({ value, label: value, selected: value === monitor.variant })),
     confirm: `Remove @${handle} and stop any active recording?`,
   }
 }
 
 export function watchPanel(deps: ServerDeps, notice: string | null = null): WatchPanel {
   const rows = deps.store.state.monitors.map(rowView)
-  const counts: WatchPanel['counts'] = { all: rows.length, live: 0, recording: 0, offline: 0 }
-  for (const row of rows) counts[row.bucket] += 1
-  return { notice, rows, counts }
+  const offline = rows.filter((row) => row.bucket === 'offline')
+  const live = rows.filter((row) => row.bucket === 'live')
+  const recording = rows.filter((row) => row.bucket === 'recording')
+  return {
+    notice,
+    total: rows.length,
+    columns: [
+      { key: 'offline', label: 'Offline', count: offline.length, rows: offline },
+      { key: 'live', label: 'Live', count: live.length, rows: live },
+      { key: 'recording', label: 'Recording', count: recording.length, rows: recording },
+    ],
+  }
 }
 
 function pageChrome(deps: ServerDeps): PageChrome {

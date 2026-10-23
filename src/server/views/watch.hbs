@@ -6,7 +6,7 @@
   </div>
 </header>
 
-<div x-data="{ filter: 'all' }" class="watch-page">
+<div class="watch-page">
   <div class="panel" id="users-panel" hx-get="/partials/users" hx-trigger="refreshUsers from:body, every 3s" hx-swap="innerMorph" hx-target="this">
     {{> users}}
   </div>
