@@ -48,6 +48,9 @@ export interface EngineOptions {
   bootStaggerMs?: number;
   blockBackoffBaseMs?: number;
   blockBackoffMaxMs?: number;
+  /** Cap on simultaneous lookups. A 77-monitor watchlist must not open 77 sockets. */
+  lookupConcurrency?: number;
+  random?: () => number;
 }
 
 export class Engine {
@@ -58,6 +61,10 @@ export class Engine {
   private readonly bootStaggerMs: number;
   private readonly blockBackoffBaseMs: number;
   private readonly blockBackoffMaxMs: number;
+  private readonly lookupConcurrency: number;
+  private readonly random: () => number;
+  private lookupActive = 0;
+  private readonly lookupQueue: Array<() => void> = [];
   private blockedUntil = 0;
   private blockStep = 0;
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -82,6 +89,8 @@ export class Engine {
     this.blockBackoffBaseMs =
       options.blockBackoffBaseMs ?? BLOCK_BACKOFF_BASE_MS;
     this.blockBackoffMaxMs = options.blockBackoffMaxMs ?? BLOCK_BACKOFF_MAX_MS;
+    this.lookupConcurrency = Math.max(1, options.lookupConcurrency ?? 3);
+    this.random = options.random ?? Math.random;
   }
 
   start(): void {
@@ -516,10 +525,26 @@ export class Engine {
   }
 
   private resolveMonitor(monitor: Monitor): Promise<LiveRoom> {
-    return this.resolver.resolve({
-      uniqueId: monitor.uniqueId,
-      roomId: monitor.roomId,
-    });
+    return this.withLookupSlot(() =>
+      this.resolver.resolve({
+        uniqueId: monitor.uniqueId,
+        roomId: monitor.roomId,
+      }),
+    );
+  }
+
+  /** FIFO gate: at most `lookupConcurrency` lookups in flight, rest wait their turn. */
+  private async withLookupSlot<T>(task: () => Promise<T>): Promise<T> {
+    if (this.lookupActive >= this.lookupConcurrency) {
+      await new Promise<void>((admit) => this.lookupQueue.push(admit));
+    }
+    this.lookupActive += 1;
+    try {
+      return await task();
+    } finally {
+      this.lookupActive -= 1;
+      this.lookupQueue.shift()?.();
+    }
   }
 
   private failMonitor(monitor: Monitor, error: unknown): void {
@@ -555,7 +580,10 @@ export class Engine {
     const slot = this.bootSlot;
     this.bootSlot += 1;
     this.awaitingFirstTick.add(id);
-    this.schedule(id, slot * step);
+    // Jitter keeps slots from landing on the same wall-clock instant when the
+    // window cap makes them collide; the lookup semaphore does the real limiting.
+    const jitter = 0.9 + this.random() * 0.2;
+    this.schedule(id, Math.max(0, Math.round(slot * step * jitter)));
   }
 
   private forgetFirstCheck(id: string): void {

@@ -19,6 +19,10 @@ export class FakeResolver implements LiveResolver {
   calls = 0;
   callTimes: number[] = [];
   error: Error | null = null;
+  /** Hold each lookup open this long, to make concurrency observable. */
+  delayMs = 0;
+  active = 0;
+  maxActive = 0;
 
   constructor(room: LiveRoom) {
     this.room = room;
@@ -27,8 +31,17 @@ export class FakeResolver implements LiveResolver {
   async resolve(_input: ResolveInput): Promise<LiveRoom> {
     this.calls += 1;
     this.callTimes.push(Date.now());
-    if (this.error) throw this.error;
-    return this.room;
+    this.active += 1;
+    this.maxActive = Math.max(this.maxActive, this.active);
+    try {
+      if (this.delayMs > 0) {
+        await new Promise((done) => setTimeout(done, this.delayMs));
+      }
+      if (this.error) throw this.error;
+      return this.room;
+    } finally {
+      this.active -= 1;
+    }
   }
 }
 

@@ -217,6 +217,79 @@ describe("Engine boot stagger", () => {
     expect(resolver.callTimes.length).toBe(before + 1);
     await engine.stop();
   });
+
+  test("jitter never pushes a slot before the boot start", async () => {
+    const { resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 60,
+      random: () => 0,
+      lookupConcurrency: 8,
+    });
+    await seedThree(engine);
+    engine.start();
+    await sleep(400);
+
+    expect(resolver.calls).toBe(3);
+    const gaps = resolver.callTimes
+      .slice(1)
+      .map((at, index) => at - resolver.callTimes[index]!);
+    console.log("jittered gaps ms:", gaps.join(", "));
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(30);
+    await engine.stop();
+  });
+});
+
+describe("Engine lookup concurrency", () => {
+  async function seed(engine: Engine, count: number) {
+    for (let index = 0; index < count; index += 1) {
+      await engine.addMonitor({ uniqueId: `user-${index}`, intervalSec: 600 });
+    }
+  }
+
+  async function waitForCalls(resolver: FakeResolver, calls: number) {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if (resolver.calls >= calls) return;
+      await sleep(20);
+    }
+    throw new Error(`resolver only saw ${resolver.calls}/${calls} calls`);
+  }
+
+  test("caps simultaneous lookups across the whole watchlist", async () => {
+    const { resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 0,
+      lookupConcurrency: 2,
+    });
+    resolver.delayMs = 40;
+    await seed(engine, 12);
+    engine.start();
+    await waitForCalls(resolver, 12);
+    await sleep(50);
+
+    console.log("lookups in flight, peak:", resolver.maxActive);
+    expect(resolver.calls).toBe(12);
+    expect(resolver.active).toBe(0);
+    expect(resolver.maxActive).toBeLessThanOrEqual(2);
+    await engine.stop();
+  });
+
+  test("a manual check waits for a slot instead of joining the storm", async () => {
+    const { store, resolver, engine } = setup(liveRoom({ status: "offline" }), {
+      bootStaggerMs: 0,
+      lookupConcurrency: 1,
+    });
+    resolver.delayMs = 30;
+    await seed(engine, 3);
+    engine.start();
+    const id = store.state.monitors[0]!.id;
+    await engine.check(id);
+
+    // The manual lookup went through the gate too: never two in flight, and the
+    // queued boot checks still land afterwards.
+    expect(resolver.maxActive).toBe(1);
+    await waitForCalls(resolver, 4);
+    expect(resolver.calls).toBe(4);
+    expect(resolver.maxActive).toBe(1);
+    await engine.stop();
+  });
 });
 
 describe("Engine blocked backoff", () => {
