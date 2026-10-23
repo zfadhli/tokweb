@@ -1,37 +1,14 @@
 import { Elysia } from 'elysia'
+import { html } from '@elysia/html'
 import { VARIANTS } from '../../core/types'
 import type { ServerDeps } from '../deps'
-import { html, renderPage, renderPartial } from '../render'
 import { updateSettings } from '../settings'
 import { chrome } from './home'
 import { fmtBytes, fmtDuration, isActiveRecording } from '../view'
+import { Admin, type AdminView } from '../views/admin'
+import { SettingsForm } from '../views/partials/settings-form'
 
-interface VariantOption {
-  value: string
-  label: string
-  selected: boolean
-}
-
-interface SettingsView {
-  outputDir: string
-  ffmpegPath: string
-  proxy: string
-  userAgent: string
-  bitrate: string
-  keepSource: boolean
-  hasCookies: boolean
-  variants: VariantOption[]
-}
-
-interface AdminData {
-  notice: string | null
-  settings: SettingsView
-  minutes: { interval: number; maxDuration: string }
-  system: { items: { label: string; value: string }[] }
-  storage: { handle: string; files: number; bytes: string; duration: string; pct: number }[]
-}
-
-export function adminData(deps: ServerDeps, notice: string | null = null): AdminData {
+export function adminData(deps: ServerDeps, notice: string | null = null): AdminView {
   const { settings, recordings, monitors } = deps.store.state
   const stored = recordings.filter((recording) => !isActiveRecording(recording))
   const groups = new Map<string, { files: number; bytes: number; duration: number }>()
@@ -112,7 +89,10 @@ function parseMinutes(raw: string | undefined): number | undefined {
 
 export function adminRoutes(deps: ServerDeps) {
   return new Elysia({ name: 'admin' })
-    .get('/admin', () => html(renderPage('admin', chrome(deps, 'admin', 'Settings'), adminData(deps))))
+    .use(html())
+    .get('/admin', ({ html }) =>
+      html(<Admin chrome={chrome(deps, 'admin', 'Settings')} data={adminData(deps)} />),
+    )
     .put('/admin/settings', async ({ request }) => {
       const form = await request.formData()
       const input: Record<string, unknown> = {}
@@ -149,7 +129,7 @@ export function adminRoutes(deps: ServerDeps) {
       }
 
       await updateSettings(deps, input)
-      return new Response(renderPartial('partials/settings-form', adminData(deps, 'Settings saved.')), {
+      return new Response(await (<SettingsForm data={adminData(deps, 'Settings saved.')} />), {
         status: 200,
         headers: {
           'Content-Type': 'text/html; charset=utf-8',

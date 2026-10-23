@@ -1,7 +1,8 @@
 import { Elysia } from 'elysia'
+import { html } from '@elysia/html'
 import type { ServerDeps } from '../deps'
-import { html, renderPage } from '../render'
-import type { PageChrome } from '../render'
+import type { PageChrome } from '../views/layout'
+import { Home, type CaptureCard, type CreatorCard, type DayBar, type HomeView, type StatCard } from '../views/home'
 import type { Monitor, Recording } from '../../core/types'
 import { fmtBytes, fmtDay, fmtDayMonth, fmtDuration, initials, isPlayable, plural } from '../view'
 
@@ -13,50 +14,6 @@ export function chrome(deps: ServerDeps, active: PageChrome['active'], title: st
     recording: deps.engine.activeCount,
     bun: Bun.version,
   }
-}
-
-interface StatCard {
-  label: string
-  value: string
-  note: string
-  kind: 'plain' | 'hot'
-}
-
-interface DayBar {
-  label: string
-  bytes: string
-  /** Share of the week's peak day, so the bar chart scales with its panel. */
-  pct: number
-  rest: number
-  hot: boolean
-  zero: boolean
-}
-
-interface CaptureCard {
-  id: string
-  handle: string
-  initial: string
-  title: string
-  date: string
-  duration: string
-  bytes: string
-  thumb: boolean
-}
-
-interface CreatorCard {
-  handle: string
-  initial: string
-  avatarUrl: string | null
-  files: string
-  bytes: string
-}
-
-interface HomeData {
-  stats: StatCard[]
-  days: DayBar[]
-  weekTotal: string
-  captures: CaptureCard[]
-  creators: CreatorCard[]
 }
 
 const DAY_MS = 86_400_000
@@ -132,7 +89,7 @@ function topCreators(recordings: Recording[], monitors: Monitor[]): CreatorCard[
     }))
 }
 
-export function homeData(deps: ServerDeps): HomeData {
+export function homeData(deps: ServerDeps): HomeView {
   const { monitors, recordings } = deps.store.state
   const completed = recordings.filter(isPlayable)
   const bytes = completed.reduce((sum, recording) => sum + (recording.bytes || 0), 0)
@@ -176,8 +133,8 @@ export function homeData(deps: ServerDeps): HomeData {
 }
 
 export function homeRoutes(deps: ServerDeps) {
-  return new Elysia({ name: 'home' }).get('/', () =>
-    html(renderPage('home', chrome(deps, 'home', 'Overview'), homeData(deps))),
+  return new Elysia({ name: 'home' }).use(html()).get('/', ({ html }) =>
+    html(<Home chrome={chrome(deps, 'home', 'Overview')} data={homeData(deps)} />),
   )
 }
 

@@ -1,14 +1,13 @@
 import { Elysia } from 'elysia'
+import { html } from '@elysia/html'
 import { EngineError } from '../../engine'
 import type { ServerDeps } from '../deps'
-import { html, renderPage, renderPartial } from '../render'
-import type { PageChrome } from '../render'
+import type { PageChrome } from '../views/layout'
 import type { Monitor, Variant } from '../../core/types'
 import { chrome } from './home'
 import { displayHandle, initials, monitorStatus } from '../view'
-
-const PANEL_ATTRS =
-  'id="users-panel" hx-get="/partials/users" hx-trigger="refreshUsers from:body, every 3s" hx-swap="innerMorph" hx-target="this"'
+import { Watch, type Bucket, type WatchRow, type WatchView } from '../views/watch'
+import { Users } from '../views/partials/users'
 
 export function parseTarget(raw: unknown): { uniqueId?: string; url?: string; roomId?: string } | null {
   const target = typeof raw === 'string' ? raw.trim() : ''
@@ -17,37 +16,6 @@ export function parseTarget(raw: unknown): { uniqueId?: string; url?: string; ro
   if (/^\d+$/.test(target) && target.length >= 6) return { roomId: target }
   const uniqueId = target.replace(/^@+/, '')
   return uniqueId ? { uniqueId } : null
-}
-
-type Bucket = 'offline' | 'live' | 'recording'
-
-interface WatchRow {
-  id: string
-  handle: string
-  title: string
-  initial: string
-  avatarUrl: string | null
-  status: string
-  chipClass: string
-  dot: boolean
-  dotClass: string
-  bucket: Bucket
-  isRecording: boolean
-  autoRecord: boolean
-  confirm: string
-}
-
-interface WatchColumn {
-  key: Bucket
-  label: string
-  count: number
-  rows: WatchRow[]
-}
-
-interface WatchPanel {
-  notice: string | null
-  total: number
-  columns: WatchColumn[]
 }
 
 function bucketFor(monitor: Monitor): Bucket {
@@ -80,7 +48,7 @@ function rowView(monitor: Monitor): WatchRow {
   }
 }
 
-export function watchPanel(deps: ServerDeps, notice: string | null = null): WatchPanel {
+export function watchPanel(deps: ServerDeps, notice: string | null = null): WatchView {
   const rows = deps.store.state.monitors.map(rowView)
   const offline = rows.filter((row) => row.bucket === 'offline')
   const live = rows.filter((row) => row.bucket === 'live')
@@ -100,8 +68,12 @@ function pageChrome(deps: ServerDeps): PageChrome {
   return chrome(deps, 'watch', 'Watch')
 }
 
-function panelShell(deps: ServerDeps, notice: string | null = null): string {
-  return `<div class="panel" ${PANEL_ATTRS}>${renderPartial('partials/users', watchPanel(deps, notice))}</div>`
+function panelShell(deps: ServerDeps, notice: string | null = null) {
+  return (
+    <div class="panel" id="users-panel" hx-get="/partials/users" hx-trigger="refreshUsers from:body, every 3s" hx-swap="innerMorph" hx-target="this">
+      <Users {...watchPanel(deps, notice)} />
+    </div>
+  )
 }
 
 function toastTrigger(message: string, level = 'ok'): Record<string, string> {
@@ -127,23 +99,24 @@ function parseAutoRecord(value: unknown): boolean {
 
 export function watchRoutes(deps: ServerDeps) {
   return new Elysia({ name: 'watch' })
-    .get('/watch', () => html(renderPage('watch', pageChrome(deps), watchPanel(deps))))
-    .get('/partials/users', () => html(renderPartial('partials/users', watchPanel(deps))))
-    .post('/watch', async ({ body }) => {
+    .use(html())
+    .get('/watch', ({ html }) => html(<Watch chrome={pageChrome(deps)} data={watchPanel(deps)} />))
+    .get('/partials/users', ({ html }) => html(<Users {...watchPanel(deps)} />))
+    .post('/watch', async ({ body, html }) => {
       const input = (body ?? {}) as Record<string, unknown>
       const parsed = parseTarget(input.target)
       if (!parsed?.uniqueId && !parsed?.url && !parsed?.roomId) {
-        return html(panelShell(deps, 'Enter a username, live URL, or room id.'), 200)
+        return html(await panelShell(deps, 'Enter a username, live URL, or room id.'))
       }
       try {
         const monitor = await deps.engine.addMonitor(parsed)
-        return new Response(panelShell(deps), {
+        return new Response(await panelShell(deps), {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8', ...toastTrigger(`Added @${displayHandle(monitor)} to watch.`) },
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not add that target.'
-        return html(panelShell(deps, message), 200)
+        return html(await panelShell(deps, message))
       }
     })
     .post('/watch/:id/check', async ({ params }) => {

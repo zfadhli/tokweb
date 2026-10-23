@@ -2,6 +2,24 @@ import type { Monitor, Recording } from '../core/types'
 
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
 
+const ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+/**
+ * Escape a value for HTML text or an attribute value.
+ *
+ * @kitajs/html does not escape interpolations, so every view component must pass
+ * untrusted text (handles, titles, file names, errors) through this function.
+ */
+export function esc(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ESCAPES[char] ?? char)
+}
+
 export function fmtBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
   const power = Math.min(BYTE_UNITS.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))

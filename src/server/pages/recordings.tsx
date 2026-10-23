@@ -1,8 +1,12 @@
 import { Elysia } from 'elysia'
+import { html } from '@elysia/html'
 import type { ServerDeps } from '../deps'
-import { html, renderPage, renderPartial } from '../render'
-import type { Recording } from '../../core/types'
 import { chrome } from './home'
+import { Recordings, type RecordingsView, type RecordingCounts, type RecordingRow } from '../views/recordings'
+import { RecordingsGrid } from '../views/partials/recordings-grid'
+import { Player, type PlayerData } from '../views/player'
+import { NotFound } from '../views/not-found'
+import type { Recording } from '../../core/types'
 import { ensureThumb, removeThumb } from '../thumbs'
 import { remuxRecording } from '../remux'
 import {
@@ -22,34 +26,6 @@ const DELETE_CONFIRM = 'Delete this recording and its file? This cannot be undon
 const DELETE_BLOCKED = 'Stop the recording before deleting it.'
 
 type Bucket = 'completed' | 'failed' | 'active'
-
-interface RecordingRow {
-  id: string
-  handle: string
-  title: string
-  initial: string
-  date: string
-  duration: string
-  bytes: string
-  fileName: string | null
-  thumb: boolean
-  playable: boolean
-  hasFile: boolean
-  deletable: boolean
-  deleteTitle: string | null
-  deleteConfirm: string
-  search: string
-  bucket: Bucket
-  chipClass: string
-  chipLabel: string
-}
-
-interface RecordingCounts {
-  all: number
-  completed: number
-  failed: number
-  active: number
-}
 
 function bucketFor(recording: Recording): Bucket {
   if (isActiveRecording(recording)) return 'active'
@@ -108,7 +84,7 @@ function countsFor(rows: RecordingRow[]): RecordingCounts {
   return counts
 }
 
-export function recordingsData(deps: ServerDeps): { stats: unknown[]; counts: RecordingCounts; rows: RecordingRow[] } {
+export function recordingsData(deps: ServerDeps): RecordingsView {
   const { rows } = tableData(deps)
   const completed = rows.filter((row) => row.bucket === 'completed')
   const bytes = deps.store.state.recordings
@@ -142,8 +118,9 @@ function toastTrigger(message: string, extra: Record<string, unknown> = {}, leve
 
 export function recordingsRoutes(deps: ServerDeps) {
   return new Elysia({ name: 'recordings' })
-    .get('/recordings', () => html(renderPage('recordings', chrome(deps, 'recordings', 'Recordings'), recordingsData(deps))))
-    .get('/partials/recordings', () => html(renderPartial('partials/recordings-grid', tableData(deps))))
+    .use(html())
+    .get('/recordings', ({ html }) => html(<Recordings chrome={chrome(deps, 'recordings', 'Recordings')} data={recordingsData(deps)} />))
+    .get('/partials/recordings', ({ html }) => html(<RecordingsGrid data={tableData(deps)} />))
     .get('/api/recordings/:id/thumb', async ({ params }) => {
       const path = await ensureThumb(deps, params.id)
       if (!path) return new Response(null, { status: 404 })
@@ -151,35 +128,35 @@ export function recordingsRoutes(deps: ServerDeps) {
         headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' },
       })
     })
-    .get('/recordings/:id', ({ params }) => {
+    .get('/recordings/:id', ({ params, set, html }) => {
       const recording = deps.store.recording(params.id)
       if (!recording) {
-        return html(renderPage('not-found', chrome(deps, 'recordings', 'Not found'), {}), 404)
+        set.status = 404
+        return html(<NotFound chrome={chrome(deps, 'recordings', 'Not found')} />)
       }
       const active = isActiveRecording(recording)
       const pageTitle = recording.title || `@${recording.uniqueId}`
-      return html(
-        renderPage('player', chrome(deps, 'recordings', pageTitle), {
-          id: recording.id,
-          pageTitle,
-          handle: recording.uniqueId,
-          hasFile: Boolean(recording.file),
-          playable: isPlayable(recording),
-          remuxable: isRemuxable(recording),
-          audio: isAudioFile(recording),
-          isActive: active,
-          state: recording.state,
-          date: fmtDate(recording.startedAt),
-          duration: fmtDuration(active ? elapsedMs(recording) : recording.durationMs),
-          bytes: fmtBytes(recording.bytes),
-          quality: recording.variant,
-          fileName: recording.file ? baseName(recording.file) : 'No file yet',
-          error: recording.error ?? 'The capture ended without a playable file.',
-          deletable: !active,
-          deleteTitle: active ? DELETE_BLOCKED : null,
-          deleteConfirm: DELETE_CONFIRM,
-        }),
-      )
+      const data: PlayerData = {
+        id: recording.id,
+        pageTitle,
+        handle: recording.uniqueId,
+        hasFile: Boolean(recording.file),
+        playable: isPlayable(recording),
+        remuxable: isRemuxable(recording),
+        audio: isAudioFile(recording),
+        isActive: active,
+        state: recording.state,
+        date: fmtDate(recording.startedAt),
+        duration: fmtDuration(active ? elapsedMs(recording) : recording.durationMs),
+        bytes: fmtBytes(recording.bytes),
+        quality: recording.variant,
+        fileName: recording.file ? baseName(recording.file) : 'No file yet',
+        error: recording.error ?? 'The capture ended without a playable file.',
+        deletable: !active,
+        deleteTitle: active ? DELETE_BLOCKED : null,
+        deleteConfirm: DELETE_CONFIRM,
+      }
+      return html(<Player chrome={chrome(deps, 'recordings', pageTitle)} data={data} />)
     })
     .delete('/recordings/:id', async ({ params, request }) => {
       const recording = deps.store.recording(params.id)
