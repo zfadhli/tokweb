@@ -112,29 +112,36 @@
             <button class="btn btn-accent add-submit" type="submit">Add to watchlist</button>
           </form>
 
-          <div class="monitor-list" id="monitor-list" aria-live="polite"></div>
+          <div class="monitor-columns" aria-live="polite">
+            <section class="monitor-col is-offline">
+              <div class="col-head">
+                <h3>Offline</h3>
+                <span class="counter" id="count-offline">0</span>
+              </div>
+              <div class="monitor-list" id="list-offline"></div>
+            </section>
+            <section class="monitor-col is-live">
+              <div class="col-head">
+                <h3>Live</h3>
+                <span class="counter" id="count-live">0</span>
+              </div>
+              <div class="monitor-list" id="list-live"></div>
+            </section>
+            <section class="monitor-col is-recording">
+              <div class="col-head">
+                <h3>Recording</h3>
+                <span class="counter" id="count-recording">0</span>
+              </div>
+              <div class="monitor-list" id="list-recording"></div>
+            </section>
+          </div>
         </section>
-
-        <aside class="panel activity-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow"><span>03</span> Console</p>
-              <h2>Activity</h2>
-            </div>
-            <span class="counter" id="activity-count">0</span>
-          </div>
-          <ol class="activity-list" id="activity-list"></ol>
-          <div class="activity-foot">
-            <span class="pulse-dot"></span>
-            <span id="activity-foot">waiting for events</span>
-          </div>
-        </aside>
       </div>
 
       <section class="panel library-panel">
         <div class="panel-head">
           <div>
-            <p class="eyebrow"><span>04</span> Archive</p>
+            <p class="eyebrow"><span>03</span> Archive</p>
             <h2>Recordings</h2>
           </div>
           <div class="library-tools">
@@ -155,7 +162,7 @@
     <dialog class="sheet" id="settings-dialog">
       <form method="dialog" class="sheet-head">
         <div>
-          <p class="eyebrow"><span>05</span> Configuration</p>
+          <p class="eyebrow"><span>04</span> Configuration</p>
           <h2>Capture settings</h2>
         </div>
         <button class="icon-btn" value="cancel" aria-label="Close settings">✕</button>

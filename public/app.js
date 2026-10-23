@@ -43,10 +43,6 @@ function fmtDuration(ms) {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`
 }
 
-function fmtClock(timestamp) {
-  return new Date(timestamp).toLocaleTimeString([], { hour12: false })
-}
-
 function fmtDate(timestamp) {
   return new Date(timestamp).toLocaleString([], {
     month: 'short',
@@ -129,7 +125,6 @@ function renderStats() {
   $('#stat-ffmpeg').textContent = snapshot.system.ffmpegPath
   $('#monitor-count').textContent = String(monitors.length)
   $('#recording-count').textContent = String(recordings.length)
-  $('#activity-count').textContent = String(snapshot.activity.length)
   $('#foot-version').textContent = `bun ${snapshot.system.bun}`
   document.title = active > 0 ? `(${active}) tokweb — capturing` : 'tokweb — live capture console'
 }
@@ -247,46 +242,33 @@ function monitorCard(monitor) {
   return card
 }
 
-function renderMonitors() {
-  const list = $('#monitor-list')
-  const focused = document.activeElement
-  if (focused && focused.closest && focused.closest('.monitor') && focused.tagName === 'SELECT') return
-  list.replaceChildren()
-  const monitors = state.snapshot.monitors
-  if (monitors.length === 0) {
-    list.append(
-      h(
-        'div',
-        { class: 'empty' },
-        h('strong', { text: 'The watchlist is empty.' }),
-        'Add a creator above. Automatic mode checks the room and starts ffmpeg the moment it goes live.',
-      ),
-    )
-    return
-  }
-  for (const monitor of monitors) list.append(monitorCard(monitor))
+const COLUMNS = ['offline', 'live', 'recording']
+
+const COLUMN_EMPTY = {
+  offline: 'Nobody on standby.',
+  live: 'Nobody live right now.',
+  recording: 'Not capturing.',
 }
 
-function renderActivity() {
-  const list = $('#activity-list')
-  list.replaceChildren()
-  const events = state.snapshot.activity
-  if (events.length === 0) {
-    list.append(h('li', { class: 'empty', text: 'No events yet. The console starts talking when you add a creator.' }))
-    $('#activity-foot').textContent = 'waiting for events'
-    return
+function columnOf(monitor) {
+  if (monitor.recordingId || monitor.state === 'recording') return 'recording'
+  if (monitor.live) return 'live'
+  return 'offline'
+}
+
+function renderMonitors() {
+  const focused = document.activeElement
+  if (focused && focused.closest && focused.closest('.monitor') && focused.tagName === 'SELECT') return
+  const buckets = { offline: [], live: [], recording: [] }
+  for (const monitor of state.snapshot.monitors) buckets[columnOf(monitor)].push(monitor)
+  for (const column of COLUMNS) {
+    const list = $(`#list-${column}`)
+    list.replaceChildren()
+    const monitors = buckets[column]
+    $(`#count-${column}`).textContent = String(monitors.length)
+    if (monitors.length === 0) list.append(h('p', { class: 'col-empty', text: COLUMN_EMPTY[column] }))
+    for (const monitor of monitors) list.append(monitorCard(monitor))
   }
-  for (const event of events) {
-    list.append(
-      h(
-        'li',
-        { class: `activity-item ${event.level}` },
-        h('time', { text: fmtClock(event.at) }),
-        h('span', { text: event.message }),
-      ),
-    )
-  }
-  $('#activity-foot').textContent = 'live event stream'
 }
 
 function recordingRow(recording) {
@@ -390,7 +372,6 @@ function render() {
   if (!state.snapshot) return
   renderStats()
   renderMonitors()
-  renderActivity()
   renderLibrary()
 }
 

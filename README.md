@@ -5,8 +5,8 @@ A web-first TikTok Live recorder. Clean-room implementation of the feature surfa
 built on Bun, Elysia, TypeScript 7, and ffmpeg. No upstream source code is copied.
 
 Add a creator to the watchlist, leave the server running, and tokweb captures each live
-session to a browser-playable MP4. The dashboard shows room state, recording progress,
-ffmpeg activity, and the archive.
+session to a browser-playable MP4. The dashboard splits the watchlist into offline, live,
+and recording columns and shows the archive below.
 
 ## Requirements
 
@@ -40,7 +40,9 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
 4. On stop, duration cap, or stream end, remux to MP4 (`+faststart`) and delete the TS.
    Set a bitrate in Settings to re-encode instead. If remux fails, the TS is kept.
 5. Update the journal, reconcile interrupted jobs on boot, and serve the archive with
-   byte-range playback.
+   byte-range playback. Monitors resuming from the journal stagger their first live
+   check by 1.5s each, capped at 45s per sweep, so a restart does not fire every
+   TikTok lookup at once.
 
 ## Recording modes
 
@@ -97,7 +99,7 @@ authentication.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/state` | Full snapshot: monitors, recordings, settings, activity |
+| `GET` | `/api/state` | Full snapshot: monitors, recordings, settings, system |
 | `GET` | `/api/events` | SSE snapshot stream |
 | `POST` | `/api/probe` | Resolve `{ uniqueId \| url \| roomId }` without saving |
 | `GET/POST` | `/api/monitors` | List / add (upserts by creator) |
@@ -121,7 +123,7 @@ src/
   tiktok/client.ts     resolver, cookies, retries, following list
   recorder/ffmpeg.ts   spawn, progress, stop, remux/transcode
   store.ts             atomic JSON journal, boot reconciliation
-  engine.ts            monitor loops, recording lifecycle, activity log
+  engine.ts            monitor loops, recording lifecycle
   server.ts            Elysia routes, SSE, range responses
   index.ts             CLI + server bootstrap
 public/                dashboard (vanilla JS, no build step)

@@ -44,7 +44,6 @@ function snapshot(deps: ServerDeps): Record<string, unknown> {
       downloadUrl: recording.file ? `/api/recordings/${recording.id}/download` : null,
     })),
     settings: publicSettings(store),
-    activity: engine.activity,
     system: {
       activeRecordings: engine.activeCount,
       outputDir: store.state.settings.outputDir,
