@@ -30,8 +30,8 @@ no upstream source code is copied.
 - **Heals itself.** Delete or drop files in the output folder by hand and the index follows:
   the archive re-scans on boot, on every 5s poll, and on the **Rescan** button.
 - **No database, no build step.** One JSON journal under `data/`, media under `recordings/`,
-  Handlebars pages with htmx fragments. htmx, Alpine and Handlebars are served from
-  `node_modules` through `/vendor/*`.
+  JSX pages with htmx fragments. htmx and Alpine are served from `node_modules` through
+  `/vendor/*`.
 
 <p align="center">
   <img src="./assets/readme/overview.png" width="100%" alt="Overview page: capture statistics, top creators ranked by kept files, a seven-day volume chart, and the latest captures with generated thumbnails.">
@@ -84,9 +84,10 @@ the room API.
 | `/recordings/:id` | Player, metadata, convert `.ts` to MP4, download, delete |
 | `/admin` | Capture defaults, paths, network, system status |
 
-Pages are server-rendered Handlebars (`src/server/views`) with a per-process compile cache;
-all formatting lives in `src/server/view.ts`, so templates only print. htmx swaps fragments
-for polling and form actions, Alpine handles local UI state. There is no asset build step.
+Pages are server-rendered JSX components (`src/server/views`) through `@elysia/html`; all
+formatting lives in `src/server/view.ts`, so components only print, and untrusted text goes
+through `esc()`. htmx swaps fragments for polling and form actions, Alpine handles local UI
+state. There is no asset build step.
 
 ## HTTP API
 
