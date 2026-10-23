@@ -1,12 +1,22 @@
 import { Elysia } from 'elysia'
-import { basename, isAbsolute, join, resolve, sep } from 'node:path'
+import { basename, resolve, sep } from 'node:path'
 import { Engine, EngineError } from './engine'
 import type { Variant } from './core/types'
 import { VARIANTS } from './core/types'
-import type { Store } from './store'
-import { TikTokClient, TikTokError, selectSource } from './tiktok/client'
+import { TikTokError, selectSource } from './tiktok/client'
+import type { ServerDeps } from './server/deps'
+import { homeRoutes } from './server/pages/home'
+import { isRecord, publicSettings, updateSettings } from './server/settings'
+
+export type { ServerDeps }
 
 const PUBLIC_DIR = resolve(import.meta.dir, '..', 'public')
+
+const VENDOR: Record<string, string> = {
+  'htmx.js': 'htmx.org/dist/htmx.min.js',
+  'htmx-alpine.js': 'htmx.org/dist/ext/hx-alpine-compat.min.js',
+  'alpine.js': 'alpinejs/dist/cdn.min.js',
+}
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -18,20 +28,6 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
-}
-
-export interface ServerDeps {
-  store: Store
-  engine: Engine
-  client: TikTokClient
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
-
-function publicSettings(store: Store): Record<string, unknown> {
-  const { cookies, ...rest } = store.state.settings
-  return { ...rest, hasCookies: cookies.trim().length > 0 }
 }
 
 function snapshot(deps: ServerDeps): Record<string, unknown> {
@@ -84,46 +80,6 @@ function monitorPatch(body: unknown): Parameters<Engine['updateMonitor']>[1] {
     patch.variant = input.variant as Variant
   }
   return patch
-}
-
-async function updateSettings(deps: ServerDeps, body: unknown): Promise<void> {
-  const input = isRecord(body) ? body : {}
-  const settings = deps.store.state.settings
-  if (typeof input.outputDir === 'string' && input.outputDir.trim()) {
-    const nextDir = resolve(process.cwd(), input.outputDir.trim())
-    if (nextDir !== settings.outputDir) {
-      const previousDir = settings.outputDir
-      for (const recording of deps.store.state.recordings) {
-        if (!recording.file || isAbsolute(recording.file)) continue
-        const previousPath = join(previousDir, recording.file)
-        if (await Bun.file(previousPath).exists()) recording.file = previousPath
-      }
-      settings.outputDir = nextDir
-    }
-  }
-  if (typeof input.ffmpegPath === 'string' && input.ffmpegPath.trim()) settings.ffmpegPath = input.ffmpegPath.trim()
-  if (typeof input.proxy === 'string') settings.proxy = input.proxy.trim()
-  if (typeof input.userAgent === 'string') settings.userAgent = input.userAgent.trim()
-  if (typeof input.cookies === 'string') {
-    settings.cookies = input.cookies
-    deps.client.setCookies(input.cookies)
-  }
-  deps.client.setNetwork({ proxy: settings.proxy, userAgent: settings.userAgent })
-  if (typeof input.keepSource === 'boolean') settings.keepSource = input.keepSource
-  if (typeof input.bitrate === 'string') {
-    const value = input.bitrate.trim()
-    settings.bitrate = /^(\d+(\.\d+)?[kKmM]?)?$/.test(value) ? value : settings.bitrate
-  }
-  if (typeof input.defaultVariant === 'string' && (VARIANTS as readonly string[]).includes(input.defaultVariant)) {
-    settings.defaultVariant = input.defaultVariant as Variant
-  }
-  if (typeof input.defaultIntervalSec === 'number') {
-    settings.defaultIntervalSec = Math.min(86_400, Math.max(10, Math.round(input.defaultIntervalSec)))
-  }
-  if (typeof input.defaultMaxDurationSec === 'number') {
-    settings.defaultMaxDurationSec = Math.min(86_400, Math.max(0, Math.round(input.defaultMaxDurationSec)))
-  }
-  deps.store.save()
 }
 
 function mediaResponse(path: string, request: Request, download = false): Response {
@@ -199,7 +155,11 @@ function sseResponse(deps: ServerDeps, request: Request): Response {
 export function createApp(deps: ServerDeps) {
   return (
     new Elysia({ name: 'tokweb' })
-      .onError(({ error, set }) => {
+      .onError(({ code, error, set }) => {
+        if (code === 'NOT_FOUND') {
+          set.status = 404
+          return { error: 'Not found.' }
+        }
         if (error instanceof EngineError) {
           set.status = error.status
           return { error: error.message }
@@ -285,7 +245,6 @@ export function createApp(deps: ServerDeps) {
         deps.store.save()
         return { ok: true }
       })
-      .get('/', () => new Response(Bun.file(join(PUBLIC_DIR, 'index.html'))))
       .get('/assets/*', async ({ params }) => {
         const name = params['*'] ?? ''
         const path = resolve(PUBLIC_DIR, name)
@@ -294,9 +253,20 @@ export function createApp(deps: ServerDeps) {
         }
         const extension = path.slice(path.lastIndexOf('.'))
         return new Response(Bun.file(path), {
-          headers: { 'Content-Type': MIME[extension] ?? 'application/octet-stream' },
+          headers: { 'Content-Type': MIME[extension] ?? 'application/octet-stream', 'Cache-Control': 'no-store' },
         })
       })
+      .get('/vendor/:file', ({ params }) => {
+        const specifier = VENDOR[params.file]
+        if (!specifier) return new Response('Not found', { status: 404 })
+        return new Response(Bun.file(Bun.resolveSync(specifier, import.meta.dir)), {
+          headers: {
+            'Content-Type': 'text/javascript; charset=utf-8',
+            'Cache-Control': 'public, max-age=86400',
+          },
+        })
+      })
+      .use(homeRoutes(deps))
       .get('/favicon.ico', () => new Response('', { status: 204 }))
   )
 }

@@ -1,0 +1,97 @@
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Overview</p>
+    <h1>Archive at a glance</h1>
+    <p class="page-sub">What is capturing right now, what landed this week, and what is still on watch.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-primary" href="/watch">Watch a creator</a>
+    <a class="btn btn-ghost" href="/recordings">Open archive</a>
+  </div>
+</header>
+
+<section class="stats" aria-label="Overview numbers">
+  {{#each stats}}
+  <article class="stat{{#if (eq kind 'hot')}} is-hot{{/if}}">
+    <span class="stat-label">{{label}}</span>
+    <strong class="stat-value">{{value}}</strong>
+    <span class="stat-note">{{note}}</span>
+  </article>
+  {{/each}}
+</section>
+
+<div class="split">
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Archive</p>
+        <h2>Latest captures</h2>
+      </div>
+      <a class="btn btn-ghost btn-small" href="/recordings">All recordings</a>
+    </div>
+    {{#if captures.length}}
+    <div class="capture-grid">
+      {{#each captures}}
+      <a class="capture" href="/recordings/{{id}}">
+        <span class="capture-art" aria-hidden="true">
+          <span class="capture-initial">{{initial}}</span>
+          <span class="capture-format">{{duration}}</span>
+          <span class="capture-play"><svg class="icon" aria-hidden="true"><use href="#i-play" /></svg></span>
+        </span>
+        <span class="capture-body">
+          <strong class="capture-handle">@{{handle}}</strong>
+          <span class="capture-title">{{title}}</span>
+          <span class="capture-meta">{{date}} · {{bytes}}</span>
+        </span>
+      </a>
+      {{/each}}
+    </div>
+    {{else}}
+    {{> empty title="Nothing captured yet." hint="Finished recordings land here with a browser-playable file and a download link."}}
+    {{/if}}
+  </section>
+
+  <aside class="stack">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Volume</p>
+          <h2>Last 7 days</h2>
+        </div>
+        <span class="counter">{{weekTotal}}</span>
+      </div>
+      <div class="chart" role="img" aria-label="Captured bytes per day over the last seven days">
+        {{#each days}}
+        <div class="bar{{#if hot}} is-today{{/if}}{{#if zero}} is-zero{{/if}}">
+          <span class="bar-track"><span class="bar-fill" style="height: {{px}}px"></span></span>
+          <span class="bar-value">{{bytes}}</span>
+          <span class="bar-label">{{label}}</span>
+        </div>
+        {{/each}}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Watchlist</p>
+          <h2>On watch</h2>
+        </div>
+        <a class="btn btn-ghost btn-small" href="/watch">Manage</a>
+      </div>
+      {{#if watch.length}}
+      <ul class="watch-list">
+        {{#each watch}}
+        <li>
+          <span class="status-dot is-{{statusKind}}"></span>
+          <a class="watch-handle" href="/watch">@{{handle}}</a>
+          <span class="watch-status">{{status}}</span>
+        </li>
+        {{/each}}
+      </ul>
+      {{else}}
+      <p class="empty-inline">No creators on watch yet.</p>
+      {{/if}}
+    </section>
+  </aside>
+</div>

@@ -4,39 +4,7 @@
  */
 import { spawn } from 'bun'
 
-const [url, out, widthArg, heightArg] = process.argv.slice(2)
-if (!url || !out) {
-  console.error('usage: bun scripts/screenshot.ts <url> <out.png> [width] [height]')
-  process.exit(2)
-}
-const width = Number(widthArg) || 1440
-const height = Number(heightArg) || 900
-const port = Number(process.env.OBSCURA_PORT) || 9444
-
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-async function obscuraUp(): Promise<boolean> {
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/json/version`)
-    return response.ok
-  } catch {
-    return false
-  }
-}
-
-async function ensureObscura(): Promise<ReturnType<typeof spawn> | null> {
-  if (await obscuraUp()) return null
-  const child = spawn({
-    cmd: ['obscura', 'serve', '--port', String(port), '--allow-private-network', '--quiet'],
-    stdout: 'ignore',
-    stderr: 'ignore',
-  })
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    await sleep(200)
-    if (await obscuraUp()) return child
-  }
-  throw new Error('obscura did not start')
-}
 
 class Cdp {
   private readonly socket: WebSocket
@@ -110,38 +78,86 @@ async function openSocket(url: string): Promise<WebSocket> {
   })
 }
 
-const daemon = await ensureObscura()
-try {
-  const version = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()) as {
-    webSocketDebuggerUrl: string
-  }
-  const browser = new Cdp(await openSocket(version.webSocketDebuggerUrl))
-  const created = await browser.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' })
-  const attached = await browser.send<{ sessionId: string }>('Target.attachToTarget', {
-    targetId: created.targetId,
-    flatten: true,
-  })
-  const session = attached.sessionId
-
-  await browser.send('Page.enable', {}, session)
-  await browser.send(
-    'Emulation.setDeviceMetricsOverride',
-    { width, height, deviceScaleFactor: 1, mobile: width < 600 },
-    session,
-  )
-  await browser.send('Page.navigate', { url }, session)
-  await sleep(2_800)
+async function obscuraUp(port: number): Promise<boolean> {
   try {
-    await browser.send('Runtime.evaluate', { expression: 'document.readyState', returnByValue: true }, session)
+    const response = await fetch(`http://127.0.0.1:${port}/json/version`)
+    return response.ok
   } catch {
-    // The screenshot below is the real check.
+    return false
   }
+}
 
-  const shot = await browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' }, session)
-  await Bun.write(out, Buffer.from(shot.data, 'base64'))
-  console.log(`screenshot ${width}x${height} -> ${out}`)
+async function ensureObscura(port: number): Promise<ReturnType<typeof spawn> | null> {
+  if (await obscuraUp(port)) return null
+  const child = spawn({
+    cmd: ['obscura', 'serve', '--port', String(port), '--allow-private-network', '--quiet'],
+    stdout: 'ignore',
+    stderr: 'ignore',
+  })
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await sleep(200)
+    if (await obscuraUp(port)) return child
+  }
+  throw new Error('obscura did not start')
+}
 
-  browser.close()
-} finally {
-  if (daemon) daemon.kill('SIGTERM')
+export interface CaptureOptions {
+  url: string
+  out: string
+  width?: number
+  height?: number
+  waitMs?: number
+  port?: number
+}
+
+export async function capture(options: CaptureOptions): Promise<void> {
+  const width = options.width ?? 1440
+  const height = options.height ?? 900
+  const port = options.port ?? (Number(process.env.OBSCURA_PORT) || 9444)
+  const daemon = await ensureObscura(port)
+  try {
+    const version = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()) as {
+      webSocketDebuggerUrl: string
+    }
+    const browser = new Cdp(await openSocket(version.webSocketDebuggerUrl))
+    const created = await browser.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' })
+    const attached = await browser.send<{ sessionId: string }>('Target.attachToTarget', {
+      targetId: created.targetId,
+      flatten: true,
+    })
+    const session = attached.sessionId
+
+    await browser.send('Page.enable', {}, session)
+    await browser.send('Network.setCacheDisabled', { cacheDisabled: true }, session)
+    await browser.send(
+      'Emulation.setDeviceMetricsOverride',
+      { width, height, deviceScaleFactor: 1, mobile: width < 600 },
+      session,
+    )
+    await browser.send('Page.navigate', { url: options.url }, session)
+    await sleep(options.waitMs ?? 2_800)
+    await browser.send('Runtime.evaluate', { expression: 'document.readyState', returnByValue: true }, session)
+
+    const shot = await browser.send<{ data: string }>('Page.captureScreenshot', { format: 'png' }, session)
+    await Bun.write(options.out, Buffer.from(shot.data, 'base64'))
+    console.log(`screenshot ${width}x${height} -> ${options.out}`)
+
+    browser.close()
+  } finally {
+    if (daemon) daemon.kill('SIGTERM')
+  }
+}
+
+if (import.meta.main) {
+  const [url, out, widthArg, heightArg] = process.argv.slice(2)
+  if (!url || !out) {
+    console.error('usage: bun scripts/screenshot.ts <url> <out.png> [width] [height]')
+    process.exit(2)
+  }
+  await capture({
+    url,
+    out,
+    width: Number(widthArg) || 1440,
+    height: Number(heightArg) || 900,
+  })
 }

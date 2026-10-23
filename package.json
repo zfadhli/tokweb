@@ -13,7 +13,10 @@
     "screenshot": "bun scripts/screenshot.ts"
   },
   "dependencies": {
-    "elysia": "^1.4.30"
+    "alpinejs": "^3.17.5",
+    "elysia": "^1.4.30",
+    "handlebars": "^4.7.10",
+    "htmx.org": "4.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
