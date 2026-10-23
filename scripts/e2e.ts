@@ -201,6 +201,17 @@ async function spawnedServer(): Promise<void> {
     const body = (await state.json()) as { system: { bun: string } }
     assert.ok(body.system.bun.length > 0)
     console.log(`✓ spawned CLI server booted on :${port} and served the dashboard`)
+
+    const events = await fetch(`${base}/api/events`)
+    assert.equal(events.status, 200)
+    const reader = events.body?.getReader()
+    assert.ok(reader)
+    await reader.read()
+    child.kill('SIGINT')
+    const stopped = await Promise.race([child.exited.then(() => true), sleep(8_000).then(() => false)])
+    await reader.cancel().catch(() => undefined)
+    assert.equal(stopped, true, 'server must exit on SIGINT while a dashboard stream is open')
+    console.log('✓ spawned CLI server exits on SIGINT with a dashboard stream open')
   } finally {
     child.kill('SIGINT')
     const timeout = setTimeout(() => child.kill('SIGKILL'), 5_000)
