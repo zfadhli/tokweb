@@ -1126,9 +1126,28 @@ table.data .cell-main span {
 }
 
 .check input {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #090c10;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.check input:checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3.5 8.4 3 3 6-6.4' fill='none' stroke='%23101408' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 13px 13px;
+}
+
+.check input:hover {
+  border-color: #38414d;
 }
 
 .hint {
@@ -1240,6 +1259,7 @@ table.data .cell-main span {
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- toasts ---------- */
@@ -1335,6 +1355,10 @@ a.htmx-request {
 
   .split {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-page .split > .stack {
+    position: static;
   }
 
   .page {
@@ -1474,4 +1498,81 @@ a.htmx-request {
   .recordings-page .filter-row .btn {
     min-height: 34px;
   }
+}
+
+/* ---------- admin ---------- */
+
+.admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-page .admin-group {
+  margin: 20px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.admin-page .admin-group:first-of-type {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.admin-page .notice {
+  margin-bottom: 14px;
+}
+
+.admin-page .form-actions {
+  margin-top: 16px;
+}
+
+.admin-page .admin-note {
+  margin-top: 12px;
+}
+
+.admin-page .split > .stack {
+  position: sticky;
+  top: 74px;
+  align-self: start;
+}
+
+.admin-page .align-right {
+  text-align: right;
+}
+
+.admin-page .admin-storage {
+  margin-top: 18px;
+}
+
+.admin-page table.data {
+  min-width: 0;
+}
+
+.admin-page table.data td,
+.admin-page table.data th {
+  padding: 8px 10px;
+}
+
+.admin-page .storage-bar {
+  display: block;
+  min-width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-3);
+  overflow: hidden;
+}
+
+.admin-page .storage-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
 }
