@@ -35,6 +35,8 @@ function fileSize(path: string): number {
 function adopt(recording: Recording, source: string, target: string, keepSource: boolean): RemuxResult {
   recording.file = basename(target)
   recording.bytes = fileSize(target)
+  recording.state = 'completed'
+  recording.error = null
   if (!keepSource) {
     try {
       unlinkSync(source)

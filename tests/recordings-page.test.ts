@@ -282,6 +282,7 @@ describe('recordings page', () => {
     expect(await Bun.file(join(store.state.settings.outputDir, 'rec-ts.mp4')).exists()).toBe(true)
     expect(await Bun.file(join(store.state.settings.outputDir, 'rec-ts.ts')).exists()).toBe(false)
     expect(store.recording('rec-ts')?.file).toBe('rec-ts.mp4')
+    expect(store.recording('rec-ts')?.state).toBe('completed')
 
     const page = await (await get(app, '/recordings/rec-ts')).text()
     expect(page).toContain('<video class="player-video" controls preload="metadata" src="/api/recordings/rec-ts/file">')
