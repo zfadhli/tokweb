@@ -1,52 +1,0 @@
-resolving aljazeera…
-{
-  "status": "live",
-  "uniqueId": "aljazeera",
-  "roomId": "7698480612664183559",
-  "title": "تغطية مباشرة",
-  "viewers": 11158,
-  "streams": [
-    {
-      "quality": "HD",
-      "format": "flv"
-    },
-    {
-      "quality": "HD",
-      "format": "flv"
-    },
-    {
-      "quality": "HD",
-      "format": "hls"
-    },
-    {
-      "quality": "HD",
-      "format": "hls"
-    },
-    {
-      "quality": "AUDIO",
-      "format": "flv"
-    },
-    {
-      "quality": "AUDIO",
-      "format": "flv"
-    }
-  ],
-  "selected": {
-    "quality": "HD",
-    "format": "flv",
-    "host": "pull-flv-l1-sg01.tiktokcdn.com"
-  }
-}
-RESOLVER VERIFIED
-recording 6s to /tmp/tokweb-probe/probe_1792720754736.flv…
-0.50 MB0.75 MB0.75 MB1.00 MB1.00 MB1.00 MB1.30 MB
-{
-  "ok": true,
-  "file": "/tmp/tokweb-probe/probe_1792720754736.mp4",
-  "flvFile": "/tmp/tokweb-probe/probe_1792720754736.flv",
-  "bytes": 1358063,
-  "durationMs": 6061,
-  "code": 0,
-  "error": null
-}
-RECORD VERIFIED
