@@ -95,3 +95,25 @@ capture is playable.
 - [x] Followers IP-burst item from Phase H is obsolete with followers mode removed.
 - [x] Verification: 41 tests, typecheck clean, E2E VERIFIED. Evidence:
   `.crew/evidence/single-mode.md`.
+
+## Phase J: server-rendered frontend
+
+- [x] Branch `feat/htmx-frontend`; Handlebars, htmx 4.0.0, Alpine 3 from npm,
+  served through an allowlisted `/vendor/:file` route with no asset build step.
+- [x] One rendering path: `src/server/render.ts` compiles `src/server/views`, a
+  page renders to a body string, then the layout wraps it. Formatting lives in
+  the pure `src/server/view.ts`.
+- [x] Overview page: four stats, seven-day volume chart, latest captures, watchlist.
+- [x] Watch page: add-user form, Alpine state filter, htmx row actions
+  (check, record, stop, auto, quality, delete) that return 204 + `HX-Trigger`.
+- [x] Recordings page: totals, search, state filters, guarded delete, player page,
+  and a real 404 page for unknown ids.
+- [x] Admin page: capture defaults, paths, network, cookies, system panel, and
+  storage grouped by handle. Cookies are never echoed back.
+- [x] Old SPA deleted: `public/index.html`, the DOM renderer, the old stylesheet.
+- [x] `scripts/fixture.ts` seeds a deterministic archive with one live capture for
+  screenshots; `scripts/screenshot.ts` is importable and reusable.
+- [x] E2E covers every page, vendor assets, the archive listing, the player embed,
+  and a form-encoded add-user round trip.
+- [x] Verification: 86 tests, typecheck clean, E2E VERIFIED, screenshots at 1440
+  and 390 for all five pages. Evidence: `.crew/evidence/frontend-rebuild.md`.

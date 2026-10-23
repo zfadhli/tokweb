@@ -25,3 +25,10 @@ U3	change	first check per monitor staggered on resume (bootStaggerMs 1500, 45s c
 U4	change	default poll 180s; new monitors autoRecord off (dashboard, CLI, API)	SHIP	bun test 36 pass; typecheck clean; e2e VERIFIED	laziness-protocol
 U5	change	file names drop room id + date dashes; parseFileName reads current and legacy names	SHIP	bun test 41 pass; typecheck clean	fix-root-causes
 U6	change	manual+followers modes removed; username-only add form; global max segment	SHIP	bun test 41 pass; typecheck clean; e2e VERIFIED	fix-root-causes
+U7	build	branch feat/htmx-frontend; handlebars+htmx4+alpine from npm; /vendor allowlist	SHIP	bun test 46 pass; typecheck clean	laziness-protocol
+U8	build	server-rendered shell + home page + fixture harness + screenshot refactor	SHIP	commit 4a05547; shots final-home-*; vision pass	foundational-thinking
+U9	build	/watch users page, add form, htmx row actions, alpine filter	SHIP	commit 9f43399 + 4631c35; 69 pass	foundational-thinking
+U10	build	/recordings archive + /recordings/:id player + 404 page	SHIP	commit c23623c; 79 pass	sequence-verifiable-units
+U11	build	/admin settings form, system + storage panels	SHIP	commit 9014326; 86 pass	boundary-discipline
+U12	verify	e2e covers all pages and HTML add flow; README rewritten	SHIP	commit 2272825 + 3f65c57; e2e VERIFIED	prove-it-works
+U13	verify	two-viewport screenshots of five pages + vision review	SHIP	.crew/evidence/frontend-rebuild.md	prove-it-works
