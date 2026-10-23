@@ -167,6 +167,11 @@ For the CLI
 sessionid=...; ttwid=...
 ```
 
+Requests go through `wreq-js`, which presents Chrome 136's TLS/JA3/JA4 and HTTP/2 fingerprint
+(`src/tiktok/transport.ts`), so lookups do not advertise themselves as a script. The profile
+page's SlardarWAF challenge is a JavaScript gate that a TLS fingerprint cannot pass; only a real
+cookie from a browser that solved it does that, which is what the fields above are for.
+
 The client also fetches a `ttwid` automatically, and cookies usually help in blocked regions.
 They are stored in plain text in `data/state.json`. The UI has **no authentication**: bind it
 to `127.0.0.1` or put it behind your own proxy, and do not expose it to an untrusted network.

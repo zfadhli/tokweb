@@ -5,6 +5,7 @@ import {
   TikTokError,
   type FetchLike,
 } from "../src/tiktok/client";
+import { desktopUserAgent, transportFetch } from "../src/tiktok/transport";
 
 const liveApi = await Bun.file(
   join(import.meta.dir, "fixtures", "live-api.json"),
@@ -12,15 +13,6 @@ const liveApi = await Bun.file(
 const livePage = await Bun.file(
   join(import.meta.dir, "fixtures", "live-page.html"),
 ).text();
-
-function recorder() {
-  const calls: Array<{ url: string; init?: RequestInit }> = [];
-  const fetchImpl: FetchLike = async (url, init) => {
-    calls.push({ url, init });
-    return new Response("<html></html>", { status: 200 });
-  };
-  return { calls, fetchImpl };
-}
 
 describe("TikTok client", () => {
   test("fetches ttwid once, retries a 429, and sends the cookie", async () => {
@@ -174,7 +166,7 @@ describe("TikTok client", () => {
         return new Response(challenge, { status: 200 });
       },
     });
-    for (const attempt of [1, 2]) {
+    for (let i = 0; i < 2; i += 1) {
       let error: unknown;
       try {
         await client.resolve({ uniqueId: "x" });
@@ -212,5 +204,43 @@ describe("TikTok client", () => {
     }
     expect(error).toBeInstanceOf(TikTokError);
     expect((error as TikTokError).kind).toBe("parse");
+  });
+});
+
+describe("TikTok transport (wreq impersonation)", () => {
+  test("default UA matches the emulated profile", async () => {
+    const seen: string[] = [];
+    const capture: FetchLike = async (_url, init) => {
+      seen.push(new Headers(init?.headers).get("user-agent") ?? "");
+      return new Response("<html></html>", { status: 200 });
+    };
+    const client = new TikTokClient({ fetch: capture, retries: 1 });
+    await client.resolve({ uniqueId: "someone" }).catch(() => {});
+    expect(seen.length).toBeGreaterThan(0);
+    for (const ua of seen) {
+      expect(ua).toBe(desktopUserAgent());
+      expect(ua).toMatch(/Chrome\/\d+/);
+    }
+  });
+
+  test('setNetwork({ userAgent: "" }) restores the emulated UA', async () => {
+    const seen: string[] = [];
+    const capture: FetchLike = async (_url, init) => {
+      seen.push(new Headers(init?.headers).get("user-agent") ?? "");
+      return new Response("<html></html>", { status: 200 });
+    };
+    const client = new TikTokClient({
+      fetch: capture,
+      retries: 1,
+      userAgent: "custom/1.0",
+    });
+    client.setNetwork({ userAgent: "" });
+    await client.resolve({ uniqueId: "someone" }).catch(() => {});
+    expect(seen.length).toBeGreaterThan(0);
+    for (const ua of seen) expect(ua).toBe(desktopUserAgent());
+  });
+
+  test("transportFetch is exported", () => {
+    expect(typeof transportFetch).toBe("function");
   });
 });

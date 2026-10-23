@@ -5,6 +5,7 @@ import type {
   Variant,
 } from "../core/types";
 import { parseLivePage, parseLiveRoomResponse, pickStream } from "./parse";
+import { desktopUserAgent, transportFetch } from "./transport";
 
 export interface LiveResolver {
   resolve(input: ResolveInput): Promise<LiveRoom>;
@@ -145,8 +146,8 @@ export class TikTokClient implements LiveResolver {
   private ttwidTriedAt = 0;
 
   constructor(options: TikTokOptions = {}) {
-    this.fetchImpl = options.fetch ?? fetch;
-    this.ua = options.userAgent || DESKTOP_UA;
+    this.fetchImpl = options.fetch ?? transportFetch;
+    this.ua = options.userAgent || desktopUserAgent() || DESKTOP_UA;
     this.proxy = options.proxy ?? "";
     this.cookies = cookieHeader(options.cookies);
     this.retries = Math.max(1, options.retries ?? 3);
@@ -162,7 +163,7 @@ export class TikTokClient implements LiveResolver {
   setNetwork(options: { proxy?: string; userAgent?: string }): void {
     if (options.proxy !== undefined) this.proxy = options.proxy;
     if (options.userAgent !== undefined)
-      this.ua = options.userAgent || DESKTOP_UA;
+      this.ua = options.userAgent || desktopUserAgent() || DESKTOP_UA;
   }
 
   async resolve(input: ResolveInput): Promise<LiveRoom> {
