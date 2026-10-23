@@ -18,7 +18,7 @@ export const DEFAULT_SETTINGS: Settings = {
   proxy: '',
   userAgent: '',
   defaultVariant: 'best',
-  defaultIntervalSec: 60,
+  defaultIntervalSec: 180,
   bitrate: '',
   keepSource: false,
 }
@@ -39,7 +39,7 @@ function loadedSettings(raw: unknown, fallback: Settings): Settings {
     proxy: pick('proxy'),
     userAgent: pick('userAgent'),
     defaultVariant: pick('defaultVariant'),
-    defaultIntervalSec: Math.max(10, Number(pick('defaultIntervalSec')) || 60),
+    defaultIntervalSec: Math.max(10, Number(pick('defaultIntervalSec')) || 180),
     bitrate: pick('bitrate'),
     keepSource: Boolean(pick('keepSource')),
   }

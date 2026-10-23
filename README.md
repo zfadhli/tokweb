@@ -49,7 +49,7 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
 | Mode | Behavior |
 | --- | --- |
 | `manual` | Check or record on demand. The CLI records once at startup. |
-| `automatic` | Polls the room on an interval and records whenever it goes live. Default for new dashboard monitors. |
+| `automatic` | Polls the room on an interval (default 3 min) and records only after auto-record is enabled. Default for new dashboard monitors. |
 | `followers` | Polls the following list of an account and records followed creators who are live. Requires authenticated cookies; experimental. |
 
 ## CLI

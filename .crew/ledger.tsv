@@ -22,3 +22,4 @@ E1	change	.ts intermediate capture	SHIP	bun test 31 pass; e2e VERIFIED; SIGKILL'
 U1	change	console panel removed, watchlist split into offline/live/recording	SHIP	bun test 31 pass; e2e VERIFIED; rails sampled from PNG (amber f0b45a, live d6ff3f, rec ff6b5f); card heights equal	minus-one-reader-load
 U2	fix	`.status.recording` collided with archive row `.recording` rule	scoped to `.library .recording`	.crew/evidence/ui-columns.md	fix-root-causes
 U3	change	first check per monitor staggered on resume (bootStaggerMs 1500, 45s cap)	SHIP	bun test 35 pass; typecheck clean; e2e VERIFIED; measured gaps 79/80 ms at step 80, span 159 ms	fix-root-causes
+U4	change	default poll 180s; new monitors autoRecord off (dashboard, CLI, API)	SHIP	bun test 36 pass; typecheck clean; e2e VERIFIED	laziness-protocol

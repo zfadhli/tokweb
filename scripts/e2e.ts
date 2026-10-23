@@ -110,6 +110,7 @@ async function inProcess(): Promise<void> {
     mode: 'automatic',
     variant: 'best',
     intervalSec: 10,
+    autoRecord: true,
   })
   assert.equal(created.status, 201)
   const monitor = (await created.json()) as { id: string }

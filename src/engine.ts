@@ -147,7 +147,7 @@ export class Engine {
       roomId,
       mode,
       variant,
-      autoRecord: input.autoRecord ?? mode !== 'manual',
+      autoRecord: input.autoRecord ?? false,
       intervalSec,
       maxDurationSec,
       state: 'idle',

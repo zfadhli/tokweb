@@ -19,7 +19,12 @@ describe('Engine', () => {
   test('automatic mode records when live and finalizes the job', async () => {
     const { store, recorder, engine } = setup()
     engine.start()
-    const monitor = await engine.addMonitor({ uniqueId: 'streamer', mode: 'automatic', intervalSec: 10 })
+    const monitor = await engine.addMonitor({
+      uniqueId: 'streamer',
+      mode: 'automatic',
+      intervalSec: 10,
+      autoRecord: true,
+    })
     await sleep(40)
 
     expect(recorder.handles).toHaveLength(1)
@@ -33,6 +38,18 @@ describe('Engine', () => {
     expect(recording?.state).toBe('completed')
     expect(recording?.file).toEndWith('.mp4')
     expect(monitor.recordingId).toBeNull()
+    await engine.stop()
+  })
+
+  test('new monitors default to a 3 minute poll with auto-record off', async () => {
+    const { engine, recorder } = setup()
+    engine.start()
+    const monitor = await engine.addMonitor({ uniqueId: 'streamer', mode: 'automatic' })
+    await sleep(40)
+
+    expect(monitor.intervalSec).toBe(180)
+    expect(monitor.autoRecord).toBe(false)
+    expect(recorder.handles).toHaveLength(0)
     await engine.stop()
   })
 
@@ -167,7 +184,12 @@ describe('Engine followers mode', () => {
     })()
     const followerEngine = new Engine(store, resolver, { recorder: recorder.factory })
     followerEngine.start()
-    await followerEngine.addMonitor({ uniqueId: 'owner', mode: 'followers', intervalSec: 10 })
+    await followerEngine.addMonitor({
+      uniqueId: 'owner',
+      mode: 'followers',
+      intervalSec: 10,
+      autoRecord: true,
+    })
     await sleep(80)
     expect(recorder.handles).toHaveLength(2)
     expect(store.state.recordings).toHaveLength(2)

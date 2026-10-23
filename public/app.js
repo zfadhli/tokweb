@@ -392,7 +392,8 @@ function fillSettings() {
   $('#set-output').value = settings.outputDir ?? ''
   $('#set-ffmpeg').value = settings.ffmpegPath ?? ''
   $('#set-variant').value = settings.defaultVariant ?? 'best'
-  $('#set-interval').value = Math.max(1, Math.round((settings.defaultIntervalSec ?? 60) / 60))
+  $('#set-interval').value = Math.max(1, Math.round((settings.defaultIntervalSec ?? 180) / 60))
+  $('#add-interval').value = Math.max(1, Math.round((settings.defaultIntervalSec ?? 180) / 60))
   $('#set-bitrate').value = settings.bitrate ?? ''
   $('#set-proxy').value = settings.proxy ?? ''
   $('#set-ua').value = settings.userAgent ?? ''
@@ -447,7 +448,6 @@ async function addMonitor(event) {
   payload.variant = variant
   payload.intervalSec = Math.max(10, Math.round(intervalMin * 60))
   payload.maxDurationSec = durationMin > 0 ? Math.round(durationMin * 60) : null
-  payload.autoRecord = mode !== 'manual'
   try {
     await api('/api/monitors', { method: 'POST', body: JSON.stringify(payload) })
     $('#add-target').value = ''

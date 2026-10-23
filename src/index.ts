@@ -217,7 +217,6 @@ async function main(): Promise<void> {
         variant: options.variant,
         intervalSec: numberOrUndefined(options.intervalSec ? options.intervalSec * 60 : undefined, 10, 86_400),
         maxDurationSec: numberOrUndefined(options.durationSec, 5, 86_400) ?? null,
-        autoRecord: options.mode !== 'manual',
       })
       console.log(`monitor ready: @${monitor.uniqueId ?? monitor.roomId} (${monitor.mode})`)
       if (options.mode === 'manual') {
