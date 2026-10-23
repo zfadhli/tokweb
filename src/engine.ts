@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { fileBase } from './core/naming'
@@ -143,7 +142,7 @@ export class Engine {
 
     const at = this.now()
     const monitor: Monitor = {
-      id: randomUUID(),
+      id: Bun.randomUUIDv7(),
       uniqueId,
       roomId,
       mode,
@@ -353,7 +352,7 @@ export class Engine {
     const settings = this.store.state.settings
     const base = this.availableBase(settings.outputDir, fileBase(room.uniqueId, room.roomId, at))
     const recording: Recording = {
-      id: randomUUID(),
+      id: Bun.randomUUIDv7(),
       monitorId: monitor.id,
       uniqueId: room.uniqueId,
       roomId: room.roomId,
@@ -533,7 +532,7 @@ export class Engine {
   }
 
   private log(level: ActivityEvent['level'], message: string): void {
-    this.events.unshift({ id: randomUUID(), at: this.now(), level, message })
+    this.events.unshift({ id: Bun.randomUUIDv7(), at: this.now(), level, message })
     if (this.events.length > 100) this.events.length = 100
   }
 }

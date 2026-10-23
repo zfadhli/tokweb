@@ -1,5 +1,4 @@
 import { Elysia } from 'elysia'
-import { unlinkSync, existsSync } from 'node:fs'
 import { basename, isAbsolute, join, resolve, sep } from 'node:path'
 import { Engine, EngineError } from './engine'
 import type { MonitorMode, Variant } from './core/types'
@@ -93,7 +92,7 @@ function monitorPatch(body: unknown): Parameters<Engine['updateMonitor']>[1] {
   return patch
 }
 
-function updateSettings(deps: ServerDeps, body: unknown): void {
+async function updateSettings(deps: ServerDeps, body: unknown): Promise<void> {
   const input = isRecord(body) ? body : {}
   const settings = deps.store.state.settings
   if (typeof input.outputDir === 'string' && input.outputDir.trim()) {
@@ -103,7 +102,7 @@ function updateSettings(deps: ServerDeps, body: unknown): void {
       for (const recording of deps.store.state.recordings) {
         if (!recording.file || isAbsolute(recording.file)) continue
         const previousPath = join(previousDir, recording.file)
-        if (existsSync(previousPath)) recording.file = previousPath
+        if (await Bun.file(previousPath).exists()) recording.file = previousPath
       }
       settings.outputDir = nextDir
     }
@@ -220,8 +219,8 @@ export function createApp(deps: ServerDeps) {
       .get('/api/state', () => snapshot(deps))
       .get('/api/events', ({ request }) => sseResponse(deps, request))
       .get('/api/settings', () => publicSettings(deps.store))
-      .put('/api/settings', ({ body }) => {
-        updateSettings(deps, body)
+      .put('/api/settings', async ({ body }) => {
+        await updateSettings(deps, body)
         return publicSettings(deps.store)
       })
       .post('/api/probe', async ({ body }) => {
@@ -273,7 +272,7 @@ export function createApp(deps: ServerDeps) {
         if (!path) return new Response(JSON.stringify({ error: 'File is missing.' }), { status: 404 })
         return mediaResponse(path, request, true)
       })
-      .delete('/api/recordings/:id', ({ params, set }) => {
+      .delete('/api/recordings/:id', async ({ params, set }) => {
         const recording = deps.store.recording(params.id)
         if (!recording) {
           set.status = 404
@@ -284,16 +283,16 @@ export function createApp(deps: ServerDeps) {
           return { error: 'Stop the recording before deleting it.' }
         }
         const path = deps.store.recordingPath(recording)
-        if (path) unlinkSync(path)
+        if (path) await Bun.file(path).delete()
         deps.store.state.recordings = deps.store.state.recordings.filter((item) => item.id !== params.id)
         deps.store.save()
         return { ok: true }
       })
       .get('/', () => new Response(Bun.file(join(PUBLIC_DIR, 'index.html'))))
-      .get('/assets/*', ({ params }) => {
+      .get('/assets/*', async ({ params }) => {
         const name = params['*'] ?? ''
         const path = resolve(PUBLIC_DIR, name)
-        if (!path.startsWith(`${PUBLIC_DIR}${sep}`) || !existsSync(path)) {
+        if (!path.startsWith(`${PUBLIC_DIR}${sep}`) || !(await Bun.file(path).exists())) {
           return new Response('Not found', { status: 404 })
         }
         const extension = path.slice(path.lastIndexOf('.'))

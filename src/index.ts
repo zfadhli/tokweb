@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Engine } from './engine'
 import { createApp } from './server'
@@ -153,10 +152,10 @@ function numberOrUndefined(value: number | undefined, min: number, max: number):
 
 async function readCookies(value: string | undefined): Promise<string> {
   if (!value) return ''
-  const path = resolve(process.cwd(), value)
-  if (existsSync(path)) {
+  const file = Bun.file(resolve(process.cwd(), value))
+  if (await file.exists()) {
     try {
-      return readFileSync(path, 'utf8')
+      return await file.text()
     } catch {
       // Treat it as a raw header below.
     }

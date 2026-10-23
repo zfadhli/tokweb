@@ -5,7 +5,6 @@
  * Run: bun scripts/e2e.ts
  */
 import { strict as assert } from 'node:assert'
-import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawn } from 'bun'
 import { Engine } from '../src/engine'
@@ -133,8 +132,8 @@ async function inProcess(): Promise<void> {
   const fileName = recording.file
   assert.ok(fileName)
   const filePath = join(store.state.settings.outputDir, fileName)
-  assert.ok(existsSync(filePath))
-  assert.ok(statSync(filePath).size > 1000)
+  assert.ok(await Bun.file(filePath).exists())
+  assert.ok(Bun.file(filePath).size > 1000)
   console.log(`✓ ffmpeg captured ${recording.file} (${recording.bytes} bytes)`)
 
   const ranged = await app.handle(
@@ -163,7 +162,7 @@ async function inProcess(): Promise<void> {
     new Request(`http://tokweb.test/api/recordings/${recording.id}`, { method: 'DELETE' }),
   )
   assert.equal(removed.status, 200)
-  assert.equal(existsSync(filePath), false)
+  assert.equal(await Bun.file(filePath).exists(), false)
   console.log('✓ DELETE removes the index entry and the file')
 
   await engine.stop()
@@ -172,7 +171,6 @@ async function inProcess(): Promise<void> {
 async function spawnedServer(): Promise<void> {
   const dir = tempDir('tokweb-spawn-')
   const port = 35_000 + Math.floor(Math.random() * 10_000)
-  mkdirSync(join(dir, 'data'), { recursive: true })
   const child = spawn({
     cmd: ['bun', 'src/index.ts', '-port', String(port), '-data_dir', join(dir, 'data'), '-output', join(dir, 'out')],
     cwd: join(import.meta.dir, '..'),

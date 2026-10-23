@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { TikTokClient, type FetchLike } from '../src/tiktok/client'
 
-const liveApi = readFileSync(join(import.meta.dir, 'fixtures', 'live-api.json'), 'utf8')
-const livePage = readFileSync(join(import.meta.dir, 'fixtures', 'live-page.html'), 'utf8')
+const liveApi = await Bun.file(join(import.meta.dir, 'fixtures', 'live-api.json')).text()
+const livePage = await Bun.file(join(import.meta.dir, 'fixtures', 'live-page.html')).text()
 
 function recorder() {
   const calls: Array<{ url: string; init?: RequestInit }> = []
