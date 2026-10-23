@@ -104,6 +104,80 @@ describe('Store', () => {
     expect(saved.recordings[0].state).toBe('failed')
   })
 
+  test('attaches an interrupted capture\'s source file instead of adopting it twice', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(data, { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(join(output, 'alice_20260102_030405.ts'), 'ts-bytes')
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [
+          {
+            id: 'r1',
+            monitorId: null,
+            uniqueId: 'alice',
+            roomId: null,
+            title: '',
+            variant: 'best',
+            state: 'recording',
+            file: null,
+            startedAt: new Date(2026, 0, 2, 3, 4, 5).getTime() + 191,
+            endedAt: null,
+            durationMs: 0,
+            bytes: 0,
+            error: null,
+          },
+        ],
+      }),
+    )
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+    expect(store.state.recordings).toHaveLength(1)
+    expect(store.state.recordings[0]?.file).toBe('alice_20260102_030405.ts')
+    expect(store.state.recordings[0]?.bytes).toBe(8)
+  })
+
+  test('collapses a disk-adopted twin into the interrupted recording', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    const output = join(dir, 'out')
+    mkdirSync(data, { recursive: true })
+    mkdirSync(output, { recursive: true })
+    writeFileSync(join(output, 'alice_20260102_030405.ts'), 'ts-bytes')
+    const startedAt = new Date(2026, 0, 2, 3, 4, 5).getTime()
+    const base = {
+      monitorId: null,
+      roomId: null,
+      title: '',
+      variant: 'best',
+      durationMs: 0,
+      bytes: 0,
+      error: 'Interrupted by server restart',
+    }
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: output },
+        monitors: [],
+        recordings: [
+          { ...base, id: 'r1', uniqueId: 'alice', state: 'failed', file: null, startedAt: startedAt + 191, endedAt: startedAt + 60_000 },
+          { ...base, id: 'disk-abc', uniqueId: 'alice', state: 'completed', file: 'alice_20260102_030405.ts', startedAt, endedAt: startedAt + 60_000, bytes: 8 },
+        ],
+      }),
+    )
+    const store = new Store({ dataDir: data, outputDir: output }).load()
+    expect(store.state.recordings).toHaveLength(1)
+    expect(store.state.recordings[0]?.id).toBe('r1')
+    expect(store.state.recordings[0]?.file).toBe('alice_20260102_030405.ts')
+    expect(store.recordingPath(store.state.recordings[0]!)).toBe(join(output, 'alice_20260102_030405.ts'))
+  })
+
   test('adopts recordings that exist on disk before a restart', () => {
     const dir = tempDir()
     const output = join(dir, 'out')
