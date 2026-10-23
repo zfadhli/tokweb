@@ -68,6 +68,10 @@ export function isPlayable(recording: Recording): boolean {
   return PLAYABLE_EXTENSIONS.includes(extension)
 }
 
+export function isRemuxable(recording: Recording): boolean {
+  return recording.file?.toLowerCase().endsWith('.ts') ?? false
+}
+
 export function isAudioFile(recording: Recording): boolean {
   return recording.file?.toLowerCase().endsWith('.m4a') ?? false
 }

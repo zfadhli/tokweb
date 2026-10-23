@@ -260,6 +260,69 @@ describe('recordings page', () => {
     expect(ts).toContain('Kept as northlight.ts')
   })
 
+  test('the player offers Convert to MP4 for a kept .ts capture', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-ts', uniqueId: 'northlight', state: 'failed', file: 'rec-ts.ts' })
+    const page = await (await get(app, '/recordings/rec-ts')).text()
+    expect(page).toContain(
+      '<button class="btn btn-primary" type="button" hx-post="/recordings/rec-ts/remux">Convert to MP4</button>',
+    )
+  })
+
+  test('POST remuxes a .ts capture and the player then streams the mp4', async () => {
+    const { app, store, dir } = setup()
+    const fake = join(dir, 'fake-remux.sh')
+    writeFileSync(fake, '#!/bin/sh\nfor last; do :; done\nprintf MP4 > "$last"\n', { mode: 0o755 })
+    store.state.settings.ffmpegPath = fake
+    addRecording(store, { id: 'rec-ts', uniqueId: 'northlight', state: 'failed', file: 'rec-ts.ts' })
+
+    const response = await app.handle(new Request('http://localhost/recordings/rec-ts/remux', { method: 'POST' }))
+    expect(response.status).toBe(204)
+    expect(response.headers.get('HX-Redirect')).toBe('/recordings/rec-ts')
+    expect(await Bun.file(join(store.state.settings.outputDir, 'rec-ts.mp4')).exists()).toBe(true)
+    expect(await Bun.file(join(store.state.settings.outputDir, 'rec-ts.ts')).exists()).toBe(false)
+    expect(store.recording('rec-ts')?.file).toBe('rec-ts.mp4')
+
+    const page = await (await get(app, '/recordings/rec-ts')).text()
+    expect(page).toContain('<video class="player-video" controls preload="metadata" src="/api/recordings/rec-ts/file">')
+    expect(page).not.toContain('Convert to MP4')
+  })
+
+  test('a failing ffmpeg leaves the .ts untouched and toasts an error', async () => {
+    const { app, store } = setup()
+    store.state.settings.ffmpegPath = '/bin/false'
+    addRecording(store, { id: 'rec-ts', uniqueId: 'northlight', state: 'failed', file: 'rec-ts.ts' })
+    const response = await app.handle(new Request('http://localhost/recordings/rec-ts/remux', { method: 'POST' }))
+    expect(response.status).toBe(204)
+    const toast = trigger(response).toast as { message: string; level: string }
+    expect(toast.level).toBe('error')
+    expect(store.recording('rec-ts')?.file).toBe('rec-ts.ts')
+    expect(await Bun.file(join(store.state.settings.outputDir, 'rec-ts.ts')).exists()).toBe(true)
+  })
+
+  test('POST on an mp4 recording returns 409 JSON', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-mp4', uniqueId: 'aurorabeats', file: 'rec-mp4.mp4' })
+    const mp4 = await app.handle(new Request('http://localhost/recordings/rec-mp4/remux', { method: 'POST' }))
+    expect(mp4.status).toBe(409)
+    expect(await mp4.json()).toEqual({ error: 'Only .ts captures need remuxing.' })
+
+    addRecording(store, {
+      id: 'rec-busy',
+      uniqueId: 'pixelgarden',
+      state: 'recording',
+      file: 'rec-busy.ts',
+      endedAt: null,
+    })
+    const busy = await app.handle(new Request('http://localhost/recordings/rec-busy/remux', { method: 'POST' }))
+    expect(busy.status).toBe(409)
+    expect(await busy.json()).toEqual({ error: 'Stop the recording before converting it.' })
+
+    const missing = await app.handle(new Request('http://localhost/recordings/nope/remux', { method: 'POST' }))
+    expect(missing.status).toBe(404)
+    expect(await missing.json()).toEqual({ error: 'Recording not found.' })
+  })
+
   test('unknown player ids render the not-found page with a 404', async () => {
     const { app } = setup()
     const response = await get(app, '/recordings/does-not-exist')

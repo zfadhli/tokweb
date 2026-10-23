@@ -4,6 +4,7 @@ import { html, renderPage, renderPartial } from '../render'
 import type { Recording } from '../../core/types'
 import { chrome } from './home'
 import { ensureThumb, removeThumb } from '../thumbs'
+import { remuxRecording } from '../remux'
 import {
   baseName,
   elapsedMs,
@@ -14,6 +15,7 @@ import {
   isActiveRecording,
   isAudioFile,
   isPlayable,
+  isRemuxable,
 } from '../view'
 
 const DELETE_CONFIRM = 'Delete this recording and its file? This cannot be undone.'
@@ -129,10 +131,10 @@ export function recordingsData(deps: ServerDeps): { stats: unknown[]; counts: Re
   }
 }
 
-function toastTrigger(message: string, extra: Record<string, unknown> = {}): Record<string, string> {
+function toastTrigger(message: string, extra: Record<string, unknown> = {}, level = 'ok'): Record<string, string> {
   // HTTP header values must stay Latin-1; handles can carry wider Unicode.
   const safe = message.replace(/[^\x20-\x7E\xA0-\xFF]/g, '?')
-  return { 'HX-Trigger': JSON.stringify({ toast: { message: safe, level: 'ok' }, ...extra }) }
+  return { 'HX-Trigger': JSON.stringify({ toast: { message: safe, level }, ...extra }) }
 }
 
 export function recordingsRoutes(deps: ServerDeps) {
@@ -160,6 +162,7 @@ export function recordingsRoutes(deps: ServerDeps) {
           handle: recording.uniqueId,
           hasFile: Boolean(recording.file),
           playable: isPlayable(recording),
+          remuxable: isRemuxable(recording),
           audio: isAudioFile(recording),
           isActive: active,
           state: recording.state,
@@ -194,5 +197,21 @@ export function recordingsRoutes(deps: ServerDeps) {
       }
       if (redirect?.startsWith('/')) return new Response(null, { status: 204, headers: { 'HX-Redirect': redirect } })
       return new Response(null, { status: 204, headers: toastTrigger('Recording deleted.', { refreshRecordings: true }) })
+    })
+    .post('/recordings/:id/remux', async ({ params }) => {
+      const recording = deps.store.recording(params.id)
+      if (!recording) return new Response(JSON.stringify({ error: 'Recording not found.' }), { status: 404 })
+      if (isActiveRecording(recording)) {
+        return new Response(JSON.stringify({ error: 'Stop the recording before converting it.' }), { status: 409 })
+      }
+      if (!isRemuxable(recording)) {
+        return new Response(JSON.stringify({ error: 'Only .ts captures need remuxing.' }), { status: 409 })
+      }
+      const result = await remuxRecording(deps, recording)
+      if (result.ok) {
+        deps.store.save()
+        return new Response(null, { status: 204, headers: { 'HX-Redirect': `/recordings/${params.id}` } })
+      }
+      return new Response(null, { status: 204, headers: toastTrigger(result.error ?? 'Conversion failed.', {}, 'error') })
     })
 }
