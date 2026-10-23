@@ -1,0 +1,40 @@
+<header class="page-head">
+  <div>
+    <p class="eyebrow">Archive</p>
+    <h1>{{pageTitle}}</h1>
+    <p class="page-sub">@{{handle}} · {{date}}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/recordings">Back to recordings</a>
+    {{#if hasFile}}
+    <a class="btn btn-primary" href="/api/recordings/{{id}}/download">Download</a>
+    {{/if}}
+    <button class="btn btn-danger" type="button" hx-delete="/recordings/{{id}}?redirect=/recordings" hx-confirm="{{deleteConfirm}}" hx-swap="none"{{#unless deletable}} disabled title="{{deleteTitle}}"{{/unless}}>Delete</button>
+  </div>
+</header>
+
+<div class="player-shell">
+  {{#if hasFile}}
+  <video class="player-video" controls preload="metadata" src="/api/recordings/{{id}}/file"></video>
+  {{else}}
+  <section class="panel">
+    <div class="empty">
+      {{#if isActive}}
+      <strong>Still recording.</strong>
+      <p>The playable file lands here when the capture finishes.</p>
+      {{else}}
+      <strong>No playable file.</strong>
+      <p>{{error}}</p>
+      {{/if}}
+    </div>
+  </section>
+  {{/if}}
+  <dl class="meta-grid">
+    <div><dt>Started</dt><dd>{{date}}</dd></div>
+    <div><dt>Duration</dt><dd>{{duration}}</dd></div>
+    <div><dt>Size</dt><dd>{{bytes}}</dd></div>
+    <div><dt>Quality</dt><dd>{{quality}}</dd></div>
+    <div><dt>State</dt><dd>{{state}}</dd></div>
+    <div><dt>File</dt><dd>{{fileName}}</dd></div>
+  </dl>
+</div>

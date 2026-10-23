@@ -6,6 +6,7 @@ import { VARIANTS } from './core/types'
 import { TikTokError, selectSource } from './tiktok/client'
 import type { ServerDeps } from './server/deps'
 import { homeRoutes } from './server/pages/home'
+import { recordingsRoutes } from './server/pages/recordings'
 import { watchRoutes } from './server/pages/watch'
 import { isRecord, publicSettings, updateSettings } from './server/settings'
 
@@ -269,6 +270,7 @@ export function createApp(deps: ServerDeps) {
       })
       .use(homeRoutes(deps))
       .use(watchRoutes(deps))
+      .use(recordingsRoutes(deps))
       .get('/favicon.ico', () => new Response('', { status: 204 }))
   )
 }

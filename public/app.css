@@ -1428,3 +1428,50 @@ a.htmx-request {
 .watch-page .notice {
   margin: 0;
 }
+
+/* ---------- recordings ---------- */
+
+.recordings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.recordings-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recordings-search {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.recordings-search .input {
+  width: 100%;
+}
+
+.recordings-page .filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recordings-toolbar .btn-small {
+  height: 32px;
+}
+
+.recordings-page table.data .mono {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@media (max-width: 520px) {
+  .recordings-page .filter-row .btn {
+    min-height: 34px;
+  }
+}
