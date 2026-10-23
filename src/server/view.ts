@@ -59,8 +59,13 @@ export function isActiveRecording(recording: Recording): boolean {
   return (ACTIVE_STATES as readonly string[]).includes(recording.state)
 }
 
+const PLAYABLE_EXTENSIONS = ['.mp4', '.m4a', '.webm']
+
 export function isPlayable(recording: Recording): boolean {
-  return recording.state === 'completed' && Boolean(recording.file)
+  // State records how the capture ended, not whether the file is usable.
+  if (!recording.file) return false
+  const extension = recording.file.slice(recording.file.lastIndexOf('.')).toLowerCase()
+  return PLAYABLE_EXTENSIONS.includes(extension)
 }
 
 export function elapsedMs(recording: Recording, now = Date.now()): number {

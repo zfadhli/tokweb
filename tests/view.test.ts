@@ -107,10 +107,12 @@ describe('monitor status', () => {
 })
 
 describe('recordings', () => {
-  test('playable only when completed with a file', () => {
+  test('playable follows the file, not the state', () => {
     expect(isPlayable(recording())).toBe(true)
+    expect(isPlayable(recording({ state: 'cancelled' }))).toBe(true)
+    expect(isPlayable(recording({ state: 'failed' }))).toBe(true)
     expect(isPlayable(recording({ file: null }))).toBe(false)
-    expect(isPlayable(recording({ state: 'failed' }))).toBe(false)
+    expect(isPlayable(recording({ file: 'streamer_20260707_140509.ts' }))).toBe(false)
   })
 
   test('elapsed grows for unfinished recordings and freezes when ended', () => {

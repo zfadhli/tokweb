@@ -14,7 +14,7 @@
 </header>
 
 <div class="player-shell">
-  {{#if hasFile}}
+  {{#if playable}}
   <video class="player-video" controls preload="metadata" src="/api/recordings/{{id}}/file"></video>
   {{else}}
   <section class="panel">
@@ -22,8 +22,11 @@
       {{#if isActive}}
       <strong>Still recording.</strong>
       <p>The playable file lands here when the capture finishes.</p>
+      {{else if hasFile}}
+      <strong>The browser cannot play this file.</strong>
+      <p>Kept as {{fileName}}. Download it to play.</p>
       {{else}}
-      <strong>No playable file.</strong>
+      <strong>No file.</strong>
       <p>{{error}}</p>
       {{/if}}
     </div>

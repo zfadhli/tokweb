@@ -31,6 +31,10 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
+  '.mp4': 'video/mp4',
+  '.m4a': 'audio/mp4',
+  '.webm': 'video/webm',
+  '.ts': 'video/mp2t',
 }
 
 function snapshot(deps: ServerDeps): Record<string, unknown> {

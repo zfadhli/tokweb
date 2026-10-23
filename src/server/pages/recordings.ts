@@ -51,7 +51,9 @@ interface RecordingCounts {
 
 function bucketFor(recording: Recording): Bucket {
   if (isActiveRecording(recording)) return 'active'
-  return recording.state === 'completed' ? 'completed' : 'failed'
+  // The bucket tracks the remux, not how the capture ended: only a finished
+  // MP4/M4A landed in the archive cleanly.
+  return isPlayable(recording) ? 'completed' : 'failed'
 }
 
 function chipFor(recording: Recording, bucket: Bucket): { chipClass: string; chipLabel: string } {
@@ -149,6 +151,7 @@ export function recordingsRoutes(deps: ServerDeps) {
           pageTitle,
           handle: recording.uniqueId,
           hasFile: Boolean(recording.file),
+          playable: isPlayable(recording),
           isActive: active,
           state: recording.state,
           date: fmtDate(recording.startedAt),

@@ -200,6 +200,28 @@ describe('recordings page', () => {
     expect(page).toContain('ffmpeg exited with code 1')
   })
 
+  test('a stopped capture keeps its play button, a TS-only file does not', async () => {
+    const { app, store } = setup()
+    addRecording(store, { id: 'rec-stop', uniqueId: 'aurorabeats', state: 'cancelled' })
+    addRecording(store, { id: 'rec-ts', uniqueId: 'northlight', state: 'failed', file: 'northlight.ts' })
+    const page = await (await get(app, '/recordings')).text()
+    expect(page).toContain('href="/recordings/rec-stop"')
+    expect(page).not.toContain('href="/recordings/rec-ts"')
+    expect(page).toContain('href="/api/recordings/rec-ts/download"')
+    expect(page).toContain('Completed (1)')
+    expect(page).toContain('Failed (1)')
+    const rowFor = (id: string): string => page.split('<tr').filter((row) => row.includes(`hx-delete="/recordings/${id}"`)).join('')
+    expect(rowFor('rec-stop')).toContain('data-state="completed"')
+    expect(rowFor('rec-ts')).toContain('data-state="failed"')
+
+    const stopped = await (await get(app, '/recordings/rec-stop')).text()
+    expect(stopped).toContain('<video class="player-video" controls preload="metadata" src="/api/recordings/rec-stop/file">')
+
+    const ts = await (await get(app, '/recordings/rec-ts')).text()
+    expect(ts).not.toContain('<video')
+    expect(ts).toContain('Kept as northlight.ts')
+  })
+
   test('unknown player ids render the not-found page with a 404', async () => {
     const { app } = setup()
     const response = await get(app, '/recordings/does-not-exist')
