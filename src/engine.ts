@@ -11,7 +11,7 @@ import type {
 } from "./core/types";
 import { VARIANTS } from "./core/types";
 import type { LiveResolver } from "./tiktok/client";
-import { normalizeInput, selectSource } from "./tiktok/client";
+import { TikTokError, normalizeInput, selectSource } from "./tiktok/client";
 import {
   startRecorder,
   type RecorderFactory,
@@ -21,6 +21,8 @@ import {
 import type { Store } from "./store";
 
 const BOOT_STAGGER_WINDOW_MS = 45_000; // total spread is capped so a large watchlist still gets checked in under a minute.
+const BLOCK_BACKOFF_BASE_MS = 5 * 60_000;
+const BLOCK_BACKOFF_MAX_MS = 30 * 60_000;
 
 export class EngineError extends Error {
   readonly status: number;
@@ -44,6 +46,8 @@ export interface EngineOptions {
   recorder?: RecorderFactory;
   now?: () => number;
   bootStaggerMs?: number;
+  blockBackoffBaseMs?: number;
+  blockBackoffMaxMs?: number;
 }
 
 export class Engine {
@@ -52,6 +56,10 @@ export class Engine {
   private readonly recorder: RecorderFactory;
   private readonly now: () => number;
   private readonly bootStaggerMs: number;
+  private readonly blockBackoffBaseMs: number;
+  private readonly blockBackoffMaxMs: number;
+  private blockedUntil = 0;
+  private blockStep = 0;
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly awaitingFirstTick = new Set<string>();
   private bootSlot = 0;
@@ -71,6 +79,9 @@ export class Engine {
     this.recorder = options.recorder ?? startRecorder;
     this.now = options.now ?? Date.now;
     this.bootStaggerMs = options.bootStaggerMs ?? 1_500;
+    this.blockBackoffBaseMs =
+      options.blockBackoffBaseMs ?? BLOCK_BACKOFF_BASE_MS;
+    this.blockBackoffMaxMs = options.blockBackoffMaxMs ?? BLOCK_BACKOFF_MAX_MS;
   }
 
   start(): void {
@@ -292,6 +303,10 @@ export class Engine {
     if (this.stopped) return;
     const monitor = this.store.monitor(id);
     if (!monitor) return;
+    if (this.now() < this.blockedUntil) {
+      if (!this.stopped) this.schedule(id, this.blockedUntil - this.now());
+      return;
+    }
 
     try {
       if (this.activeForMonitor(id)) {
@@ -300,12 +315,32 @@ export class Engine {
         await this.tickAutomatic(monitor);
       }
     } catch (error) {
+      // Only an API block silences every monitor. A challenged profile page
+      // still leaves the JSON API working, and that API is what finds live rooms.
+      if (
+        error instanceof TikTokError &&
+        error.kind === "blocked" &&
+        error.source === "api"
+      ) {
+        const delay = Math.min(
+          this.blockBackoffBaseMs * 2 ** this.blockStep,
+          this.blockBackoffMaxMs,
+        );
+        this.blockedUntil = this.now() + delay;
+        this.blockStep += 1;
+      }
       this.failMonitor(monitor, error);
     } finally {
       monitor.updatedAt = this.now();
       if (this.store.monitor(id)) {
         this.store.save();
-        if (!this.stopped) this.schedule(id, monitor.intervalSec * 1_000);
+        if (!this.stopped) {
+          if (this.blockedUntil > this.now()) {
+            this.schedule(id, this.blockedUntil - this.now());
+          } else {
+            this.schedule(id, monitor.intervalSec * 1_000);
+          }
+        }
       }
     }
   }
@@ -314,6 +349,10 @@ export class Engine {
     monitor.state = "checking";
     monitor.lastError = null;
     const room = await this.resolveMonitor(monitor);
+    // Only a real lookup clears the block cooldown: a recording that keeps
+    // ticking without a lookup must not reset the backoff for everyone else.
+    this.blockStep = 0;
+    this.blockedUntil = 0;
     this.applyRoom(monitor, room);
     if (room.status === "live" && monitor.autoRecord) {
       await this.begin(monitor, room);

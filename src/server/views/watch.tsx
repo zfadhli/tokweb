@@ -10,6 +10,7 @@ export interface WatchRow {
   initial: string;
   avatarUrl: string | null;
   status: string;
+  statusTitle: string;
   chipClass: string;
   dot: boolean;
   dotClass: string;

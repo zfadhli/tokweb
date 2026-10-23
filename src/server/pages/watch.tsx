@@ -44,6 +44,7 @@ function rowView(monitor: Monitor): WatchRow {
     initial: initials(monitor.uniqueId ?? monitor.roomId),
     avatarUrl: monitor.avatarUrl,
     status: status.label,
+    statusTitle: status.kind === "error" ? (monitor.lastError ?? "") : "",
     chipClass:
       status.kind === "live" ||
       status.kind === "recording" ||

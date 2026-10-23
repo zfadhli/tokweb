@@ -19,7 +19,10 @@ function Row(props: WatchRow) {
             <span>{esc(props.title)}</span>
           </span>
         </span>
-        <span class={esc(props.chipClass)}>
+        <span
+          class={esc(props.chipClass)}
+          title={props.statusTitle ? esc(props.statusTitle) : undefined}
+        >
           {props.dot ? (
             <span
               class={`status-dot ${esc(props.dotClass)}`}

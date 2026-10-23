@@ -18,20 +18,25 @@ export interface TikTokOptions {
   userAgent?: string;
   fetch?: FetchLike;
   retries?: number;
+  pageCooldownMs?: number;
 }
 
 export class TikTokError extends Error {
   readonly status: number | null;
   readonly kind: "blocked" | "network" | "not-found" | "parse";
+  /** Which lookup produced the error: the JSON API or the profile page. */
+  readonly source: "api" | "page";
   constructor(
     message: string,
     kind: TikTokError["kind"],
     status: number | null = null,
+    source: TikTokError["source"] = "api",
   ) {
     super(message);
     this.name = "TikTokError";
     this.kind = kind;
     this.status = status;
+    this.source = source;
   }
 }
 
@@ -42,6 +47,12 @@ const TOKEN_CHARS =
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+const PAGE_COOLDOWN_MS = 10 * 60_000; // a challenged page stays challenged; don't re-ask every tick.
+
+function isChallengePage(html: string): boolean {
+  return /_wafchallengeid|SlardarWAF/.test(html);
+}
 
 function randomToken(length = 107): string {
   let out = "";
@@ -126,6 +137,8 @@ export class TikTokClient implements LiveResolver {
   private ua: string;
   private proxy: string;
   private readonly retries: number;
+  private readonly pageCooldownMs: number;
+  private pageBlockedUntil = 0;
   private cookies: string;
   private ttwid = "";
   private ttwidAt = 0;
@@ -137,6 +150,7 @@ export class TikTokClient implements LiveResolver {
     this.proxy = options.proxy ?? "";
     this.cookies = cookieHeader(options.cookies);
     this.retries = Math.max(1, options.retries ?? 3);
+    this.pageCooldownMs = options.pageCooldownMs ?? PAGE_COOLDOWN_MS;
   }
 
   setCookies(cookies: string): void {
@@ -161,10 +175,18 @@ export class TikTokClient implements LiveResolver {
     }
 
     let lastError: unknown = null;
+    let blockedError: TikTokError | null = null;
     try {
       return await this.fromApi(uniqueId, roomId);
     } catch (error) {
       lastError = error;
+      if (
+        error instanceof TikTokError &&
+        error.kind === "blocked" &&
+        !blockedError
+      ) {
+        blockedError = error;
+      }
     }
 
     if (uniqueId) {
@@ -172,8 +194,17 @@ export class TikTokClient implements LiveResolver {
         return await this.fromPage(uniqueId);
       } catch (error) {
         lastError = error;
+        if (
+          error instanceof TikTokError &&
+          error.kind === "blocked" &&
+          !blockedError
+        ) {
+          blockedError = error;
+        }
       }
     }
+
+    if (blockedError) throw blockedError;
 
     const message =
       lastError instanceof Error ? lastError.message : "TikTok lookup failed";
@@ -209,6 +240,17 @@ export class TikTokClient implements LiveResolver {
   }
 
   private async fromPage(uniqueId: string): Promise<LiveRoom> {
+    // The API still answers while the profile page is challenged, so a page
+    // block must not cost a request per tick. The engine ignores page-sourced
+    // blocks for its own cooldown for the same reason.
+    if (Date.now() < this.pageBlockedUntil) {
+      throw new TikTokError(
+        `TikTok is still challenging page lookups. Add cookies or a proxy in Settings.`,
+        "blocked",
+        null,
+        "page",
+      );
+    }
     const response = await this.request(
       `https://www.tiktok.com/@${encodeURIComponent(uniqueId)}/live`,
       {
@@ -220,9 +262,19 @@ export class TikTokClient implements LiveResolver {
         `TikTok page lookup failed with HTTP ${response.status}.`,
         "blocked",
         response.status,
+        "page",
       );
     }
     const html = await response.text();
+    if (isChallengePage(html)) {
+      this.pageBlockedUntil = Date.now() + this.pageCooldownMs;
+      throw new TikTokError(
+        `TikTok served a browser challenge (WAF) instead of the live page. Add cookies or a proxy in Settings.`,
+        "blocked",
+        response.status,
+        "page",
+      );
+    }
     const room = parseLivePage(html, uniqueId);
     if (!room) {
       throw new TikTokError(
