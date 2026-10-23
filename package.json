@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "probe": "bun scripts/probe-live.ts",
     "e2e": "bun scripts/e2e.ts",
+    "fixture": "bun scripts/fixture.ts",
     "screenshot": "bun scripts/screenshot.ts"
   },
   "dependencies": {

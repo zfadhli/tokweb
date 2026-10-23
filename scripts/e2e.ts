@@ -97,13 +97,33 @@ async function inProcess(): Promise<void> {
 
   const ui = await app.handle(new Request('http://tokweb.test/'))
   assert.equal(ui.status, 200)
-  assert.match(await ui.text(), /tokweb/i)
-  console.log('✓ GET / serves the dashboard')
+  const home = await ui.text()
+  assert.match(home, /tokweb/i)
+  assert.match(home, /Archive at a glance/)
+  assert.match(home, /href="\/watch"/)
+  console.log('✓ GET / serves the overview page')
+
+  const pages: Array<[string, RegExp]> = [
+    ['/watch', /Add user/],
+    ['/recordings', /Search handle or title/],
+    ['/admin', /Save settings/],
+  ]
+  for (const [path, marker] of pages) {
+    const page = await app.handle(new Request(`http://tokweb.test${path}`))
+    assert.equal(page.status, 200, `${path} status`)
+    assert.match(await page.text(), marker)
+  }
+  console.log('✓ watch, recordings, and admin pages render')
 
   const asset = await app.handle(new Request('http://tokweb.test/assets/app.js'))
   assert.equal(asset.status, 200)
-  assert.ok((await asset.text()).includes('EventSource'))
-  console.log('✓ static assets served')
+  assert.ok((await asset.text()).includes('alpine:init'))
+  const css = await app.handle(new Request('http://tokweb.test/assets/app.css'))
+  assert.equal(css.status, 200)
+  assert.ok((await css.text()).includes('.sidebar'))
+  const htmx = await app.handle(new Request('http://tokweb.test/vendor/htmx.js'))
+  assert.equal(htmx.status, 200)
+  console.log('✓ static assets and vendored htmx served')
 
   const created = await post('/api/monitors', {
     uniqueId: 'fixturecreator',
@@ -136,6 +156,28 @@ async function inProcess(): Promise<void> {
   assert.ok(Bun.file(filePath).size > 1000)
   assert.equal(await Bun.file(filePath.replace(/\.mp4$/, '.ts')).exists(), false)
   console.log(`✓ ffmpeg captured ${recording.file} (${recording.bytes} bytes)`)
+
+  const archive = await app.handle(new Request('http://tokweb.test/recordings'))
+  assert.equal(archive.status, 200)
+  const archiveHtml = await archive.text()
+  assert.ok(archiveHtml.includes('@fixturecreator'))
+  assert.ok(archiveHtml.includes(`/recordings/${recording.id}`))
+  const player = await app.handle(new Request(`http://tokweb.test/recordings/${recording.id}`))
+  assert.equal(player.status, 200)
+  assert.ok((await player.text()).includes(`/api/recordings/${recording.id}/file`))
+  console.log('✓ archive lists the capture and the player embeds it')
+
+  const added = await app.handle(
+    new Request('http://tokweb.test/watch', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'target=%40secondcreator',
+    }),
+  )
+  assert.equal(added.status, 200)
+  assert.ok((await added.text()).includes('@secondcreator'))
+  assert.ok(store.state.monitors.some((item) => item.uniqueId === 'secondcreator'))
+  console.log('✓ HTML add-user form parses a username and creates a monitor')
 
   const ranged = await app.handle(
     new Request(`http://tokweb.test/api/recordings/${recording.id}/file`, {
@@ -196,12 +238,12 @@ async function spawnedServer(): Promise<void> {
     )
     const page = await fetch(`${base}/`)
     assert.equal(page.status, 200)
-    assert.match(await page.text(), /TikTok live/)
+    assert.match(await page.text(), /Archive at a glance/)
     const state = await fetch(`${base}/api/state`)
     assert.equal(state.status, 200)
     const body = (await state.json()) as { system: { bun: string } }
     assert.ok(body.system.bun.length > 0)
-    console.log(`✓ spawned CLI server booted on :${port} and served the dashboard`)
+    console.log(`✓ spawned CLI server booted on :${port} and served the UI`)
 
     const events = await fetch(`${base}/api/events`)
     assert.equal(events.status, 200)
