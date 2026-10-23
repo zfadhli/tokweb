@@ -3,6 +3,7 @@ import type { ServerDeps } from '../deps'
 import { html, renderPage, renderPartial } from '../render'
 import type { Recording } from '../../core/types'
 import { chrome } from './home'
+import { ensureThumb, removeThumb } from '../thumbs'
 import {
   baseName,
   elapsedMs,
@@ -31,6 +32,7 @@ interface RecordingRow {
   duration: string
   bytes: string
   fileName: string | null
+  thumb: boolean
   playable: boolean
   hasFile: boolean
   deletable: boolean
@@ -80,6 +82,7 @@ function rowView(recording: Recording): RecordingRow {
     duration: fmtDuration(active ? elapsedMs(recording) : recording.durationMs),
     bytes: fmtBytes(recording.bytes),
     fileName,
+    thumb: Boolean(path) && !active,
     playable: isPlayable(recording),
     hasFile: Boolean(path),
     deletable: !active,
@@ -137,7 +140,14 @@ function toastTrigger(message: string, extra: Record<string, unknown> = {}): Rec
 export function recordingsRoutes(deps: ServerDeps) {
   return new Elysia({ name: 'recordings' })
     .get('/recordings', () => html(renderPage('recordings', chrome(deps, 'recordings', 'Recordings'), recordingsData(deps))))
-    .get('/partials/recordings', () => html(renderPartial('partials/recordings-table', tableData(deps))))
+    .get('/partials/recordings', () => html(renderPartial('partials/recordings-grid', tableData(deps))))
+    .get('/api/recordings/:id/thumb', async ({ params }) => {
+      const path = await ensureThumb(deps, params.id)
+      if (!path) return new Response(null, { status: 404 })
+      return new Response(Bun.file(path), {
+        headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' },
+      })
+    })
     .get('/recordings/:id', ({ params }) => {
       const recording = deps.store.recording(params.id)
       if (!recording) {
@@ -174,6 +184,7 @@ export function recordingsRoutes(deps: ServerDeps) {
       }
       const path = deps.store.recordingPath(recording)
       if (path) await Bun.file(path).delete()
+      await removeThumb(deps, params.id)
       deps.store.state.recordings = deps.store.state.recordings.filter((item) => item.id !== params.id)
       deps.store.save()
       let redirect: string | null = null

@@ -110,6 +110,8 @@ describe('recordings page', () => {
       'chip is-error',
       'href="/recordings/rec-done"',
       'href="/api/recordings/rec-done/download"',
+      'src="/api/recordings/rec-done/thumb"',
+      'class="capture-thumb"',
       'hx-delete="/recordings/rec-done"',
       'hx-confirm="Delete this recording and its file? This cannot be undone."',
       'hx-swap="none"',
@@ -126,7 +128,7 @@ describe('recordings page', () => {
     expect(page).not.toContain('href="/api/recordings/rec-live/download"')
   })
 
-  test('GET /partials/recordings returns only the table fragment', async () => {
+  test('GET /partials/recordings returns only the card grid fragment', async () => {
     const { app, store } = setup()
     addRecording(store, { id: 'rec-1', uniqueId: 'aurorabeats', title: 'Night session' })
     const response = await get(app, '/partials/recordings')
@@ -134,8 +136,31 @@ describe('recordings page', () => {
     const fragment = await response.text()
     expect(fragment).not.toContain('<!doctype html>')
     expect(fragment).not.toContain('x-data')
-    expect(fragment).toContain('<table class="data">')
+    expect(fragment).toContain('class="capture-grid is-recordings"')
     expect(fragment).toContain('@aurorabeats')
+    expect(fragment).not.toContain('<table')
+  })
+
+  test('thumbnails render once for finished files and 404 otherwise', async () => {
+    const { app, store, dir } = setup()
+    const fake = join(dir, 'fake-ffmpeg.sh')
+    writeFileSync(fake, '#!/bin/sh\nfor last; do :; done\nprintf JPG > "$last"\n', { mode: 0o755 })
+    store.state.settings.ffmpegPath = fake
+    addRecording(store, { id: 'rec-thumb', uniqueId: 'aurorabeats' })
+    addRecording(store, { id: 'rec-busy', uniqueId: 'pixelgarden', state: 'recording', file: null, endedAt: null })
+
+    const thumb = await get(app, '/api/recordings/rec-thumb/thumb')
+    expect(thumb.status).toBe(200)
+    expect(thumb.headers.get('Content-Type')).toBe('image/jpeg')
+    expect(await thumb.text()).toBe('JPG')
+
+    expect((await get(app, '/api/recordings/rec-busy/thumb')).status).toBe(404)
+    expect((await get(app, '/api/recordings/missing/thumb')).status).toBe(404)
+
+    const cached = join(store.dataDir, 'thumbs', 'rec-thumb.jpg')
+    expect(await Bun.file(cached).exists()).toBe(true)
+    await app.handle(new Request('http://localhost/recordings/rec-thumb', { method: 'DELETE' }))
+    expect(await Bun.file(cached).exists()).toBe(false)
   })
 
   test('DELETE removes the file and row with a toast and refresh trigger', async () => {
@@ -205,12 +230,14 @@ describe('recordings page', () => {
     addRecording(store, { id: 'rec-stop', uniqueId: 'aurorabeats', state: 'cancelled' })
     addRecording(store, { id: 'rec-ts', uniqueId: 'northlight', state: 'failed', file: 'northlight.ts' })
     const page = await (await get(app, '/recordings')).text()
-    expect(page).toContain('href="/recordings/rec-stop"')
-    expect(page).not.toContain('href="/recordings/rec-ts"')
+    const rowFor = (id: string): string =>
+      page.split('<article class="capture is-card"').filter((row) => row.includes(`hx-delete="/recordings/${id}"`)).join('')
+    expect(rowFor('rec-stop')).toContain('href="/recordings/rec-stop"')
+    expect(rowFor('rec-stop')).toContain('capture-play')
+    expect(rowFor('rec-ts')).not.toContain('capture-play')
     expect(page).toContain('href="/api/recordings/rec-ts/download"')
     expect(page).toContain('Completed (1)')
     expect(page).toContain('Failed (1)')
-    const rowFor = (id: string): string => page.split('<tr').filter((row) => row.includes(`hx-delete="/recordings/${id}"`)).join('')
     expect(rowFor('rec-stop')).toContain('data-state="completed"')
     expect(rowFor('rec-ts')).toContain('data-state="failed"')
 

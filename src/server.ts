@@ -10,6 +10,7 @@ import { recordingsRoutes } from './server/pages/recordings'
 import { adminRoutes } from './server/pages/admin'
 import { watchRoutes } from './server/pages/watch'
 import { isRecord, publicSettings, updateSettings } from './server/settings'
+import { removeThumb } from './server/thumbs'
 
 export type { ServerDeps }
 
@@ -248,6 +249,7 @@ export function createApp(deps: ServerDeps) {
         }
         const path = deps.store.recordingPath(recording)
         if (path) await Bun.file(path).delete()
+        await removeThumb(deps, recording.id)
         deps.store.state.recordings = deps.store.state.recordings.filter((item) => item.id !== params.id)
         deps.store.save()
         return { ok: true }
