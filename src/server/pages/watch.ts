@@ -4,7 +4,7 @@ import type { ServerDeps } from '../deps'
 import { html, renderPage, renderPartial } from '../render'
 import type { PageChrome } from '../render'
 import type { Monitor, Variant } from '../../core/types'
-import { VARIANTS } from '../../core/types';
+import { VARIANTS } from '../../core/types'
 import { chrome } from './home'
 import { displayHandle, initials, monitorStatus } from '../view'
 
@@ -16,7 +16,8 @@ export function parseTarget(raw: unknown): { uniqueId?: string; url?: string; ro
   if (!target) return null
   if (/^https?:\/\//i.test(target) || /tiktok\.com\//i.test(target)) return { url: target }
   if (/^\d+$/.test(target) && target.length >= 6) return { roomId: target }
-  return { uniqueId: target.replace(/^@+/, '') || null } as { uniqueId?: string }
+  const uniqueId = target.replace(/^@+/, '')
+  return uniqueId ? { uniqueId } : null
 }
 
 type Bucket = 'live' | 'recording' | 'offline'

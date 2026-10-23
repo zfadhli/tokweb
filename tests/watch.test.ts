@@ -126,7 +126,7 @@ describe('watch page', () => {
       'name="autoRecord"',
       'name="variant"',
       'hx-trigger="change"',
-      '<span class="mono">',
+      '<td class="num">3 min</td>',
       'chip is-muted',
       "x-show=\"filter === 'all' || filter === 'offline'\"",
     ]) {

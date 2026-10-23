@@ -838,6 +838,7 @@ svg {
 
 table.data {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -867,6 +868,10 @@ table.data tbody tr:last-child td {
 
 table.data tbody tr:hover {
   background: rgba(255, 255, 255, 0.018);
+}
+
+table.data th:last-child {
+  text-align: right;
 }
 
 table.data .num {
@@ -929,7 +934,7 @@ table.data .cell-main span {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
 }
 
 /* ---------- buttons ---------- */
@@ -980,6 +985,12 @@ table.data .cell-main span {
 }
 
 .btn-ghost:hover {
+  color: var(--ink);
+}
+
+.btn.is-active {
+  border-color: #2f3742;
+  background: var(--panel-3);
   color: var(--ink);
 }
 
@@ -1099,13 +1110,7 @@ table.data .cell-main span {
 }
 
 .select {
-  appearance: none;
-  padding-right: 26px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 15px, calc(100% - 9px) 15px;
-  background-size: 4px 4px, 4px 4px;
-  background-repeat: no-repeat;
+  padding-right: 8px;
 }
 
 .check {
@@ -1412,6 +1417,12 @@ a.htmx-request {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .watch-page .filter-row .btn {
+    min-height: 34px;
+  }
 }
 
 .watch-page .notice {

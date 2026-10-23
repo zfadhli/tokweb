@@ -9,10 +9,10 @@
   </div>
 </form>
 <div class="filter-row" role="group" aria-label="Filter users">
-  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'all' }" @click="filter = 'all'" :aria-pressed="filter === 'all'">All ({{counts.all}})</button>
-  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'live' }" @click="filter = 'live'" :aria-pressed="filter === 'live'">Live ({{counts.live}})</button>
-  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'recording' }" @click="filter = 'recording'" :aria-pressed="filter === 'recording'">Recording ({{counts.recording}})</button>
-  <button type="button" class="btn btn-small" :class="{ 'btn-primary': filter === 'offline' }" @click="filter = 'offline'" :aria-pressed="filter === 'offline'">Offline ({{counts.offline}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'all' }" @click="filter = 'all'" :aria-pressed="filter === 'all'">All ({{counts.all}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'live' }" @click="filter = 'live'" :aria-pressed="filter === 'live'">Live ({{counts.live}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'recording' }" @click="filter = 'recording'" :aria-pressed="filter === 'recording'">Recording ({{counts.recording}})</button>
+  <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'offline' }" @click="filter = 'offline'" :aria-pressed="filter === 'offline'">Offline ({{counts.offline}})</button>
 </div>
 {{#if rows.length}}
 <div class="table-wrap">
@@ -24,7 +24,7 @@
         <th scope="col">Quality</th>
         <th scope="col">Auto</th>
         <th scope="col">Interval</th>
-        <th scope="col"><span class="sr-only">Actions</span></th>
+        <th scope="col">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -50,7 +50,7 @@
         <td>
           <label class="check"><input type="checkbox" name="autoRecord"{{#if autoRecord}} checked{{/if}} aria-label="Auto-record @{{handle}}" hx-patch="/watch/{{id}}" hx-trigger="change" hx-include="this" hx-swap="none" />Auto</label>
         </td>
-        <td><span class="mono">{{intervalMin}} min</span></td>
+        <td class="num">{{intervalMin}} min</td>
         <td>
           <span class="row-actions">
             <button class="btn btn-small btn-ghost" type="button" hx-post="/watch/{{id}}/check" hx-swap="none">Check</button>
