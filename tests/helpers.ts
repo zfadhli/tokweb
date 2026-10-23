@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { FollowingUser, LiveRoom, ResolveInput } from '../src/core/types'
+import type { LiveRoom, ResolveInput } from '../src/core/types'
 import type { LiveResolver } from '../src/tiktok/client'
 import type { RecorderFactory, RecorderHandle, RecorderOptions, RecorderResult } from '../src/recorder/ffmpeg'
 
@@ -11,7 +11,6 @@ export function tempDir(prefix = 'tokweb-'): string {
 
 export class FakeResolver implements LiveResolver {
   room: LiveRoom
-  followingUsers: FollowingUser[] = []
   calls = 0
   callTimes: number[] = []
   error: Error | null = null
@@ -25,11 +24,6 @@ export class FakeResolver implements LiveResolver {
     this.callTimes.push(Date.now())
     if (this.error) throw this.error
     return this.room
-  }
-
-  async following(_uniqueId: string): Promise<FollowingUser[]> {
-    if (this.error) throw this.error
-    return this.followingUsers
   }
 }
 

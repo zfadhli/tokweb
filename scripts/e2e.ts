@@ -107,14 +107,13 @@ async function inProcess(): Promise<void> {
 
   const created = await post('/api/monitors', {
     uniqueId: 'fixturecreator',
-    mode: 'automatic',
     variant: 'best',
     intervalSec: 10,
     autoRecord: true,
   })
   assert.equal(created.status, 201)
   const monitor = (await created.json()) as { id: string }
-  console.log('✓ POST /api/monitors created an automatic monitor')
+  console.log('✓ POST /api/monitors created a monitor')
 
   const recording = await waitFor('recording to finish', async () => {
     const response = await app.handle(new Request('http://tokweb.test/api/state'))

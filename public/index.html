@@ -84,31 +84,6 @@
                 required
               />
             </label>
-            <label class="field">
-              <span>Mode</span>
-              <select id="add-mode" name="mode">
-                <option value="automatic">Automatic</option>
-                <option value="manual">Manual</option>
-                <option value="followers">Followers</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Quality</span>
-              <select id="add-variant" name="variant">
-                <option value="best">Best available</option>
-                <option value="hd">HD</option>
-                <option value="sd">SD</option>
-                <option value="audio">Audio only</option>
-              </select>
-            </label>
-            <label class="field field-narrow">
-              <span>Poll / min</span>
-              <input id="add-interval" name="interval" type="number" min="1" max="1440" value="3" />
-            </label>
-            <label class="field field-narrow">
-              <span>Max segment / min</span>
-              <input id="add-duration" name="duration" type="number" min="1" max="1440" placeholder="∞" />
-            </label>
             <button class="btn btn-accent add-submit" type="submit">Add to watchlist</button>
           </form>
 
@@ -190,6 +165,10 @@
             <span>Default poll / min</span>
             <input id="set-interval" type="number" min="1" max="1440" />
           </label>
+          <label class="field">
+            <span>Default max segment / min</span>
+            <input id="set-duration" type="number" min="0" max="1440" placeholder="∞" />
+          </label>
         </div>
         <div class="field-row">
           <label class="field">
@@ -214,7 +193,7 @@
           <label class="check"><input id="set-clear-cookies" type="checkbox" /> Clear saved cookies</label>
         </div>
         <p class="hint">
-          Cookies unlock blocked regions and followers mode. They stay in <code>data/state.json</code> on this machine.
+          Cookies unlock blocked regions. They stay in <code>data/state.json</code> on this machine.
         </p>
         <div class="sheet-actions">
           <button class="btn btn-ghost" value="cancel" type="button" data-action="close-settings">Cancel</button>

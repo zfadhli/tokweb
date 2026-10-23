@@ -17,10 +17,9 @@ describe('Store', () => {
       id: 'm1',
       uniqueId: 'alice',
       roomId: null,
-      mode: 'manual',
       variant: 'best',
       autoRecord: false,
-      intervalSec: 60,
+      intervalSec: 180,
       maxDurationSec: null,
       state: 'idle',
       live: false,
@@ -38,6 +37,24 @@ describe('Store', () => {
     const reloaded = new Store({ dataDir: join(dir, 'data'), outputDir: output }).load()
     expect(reloaded.state.monitors).toHaveLength(1)
     expect(reloaded.state.monitors[0]?.uniqueId).toBe('alice')
+  })
+
+  test('drops the retired mode field from stored monitors', () => {
+    const dir = tempDir()
+    const data = join(dir, 'data')
+    mkdirSync(data, { recursive: true })
+    writeFileSync(
+      join(data, 'state.json'),
+      JSON.stringify({
+        version: 1,
+        settings: { outputDir: join(dir, 'out') },
+        monitors: [{ id: 'm1', uniqueId: 'alice', mode: 'followers', createdAt: 1, intervalSec: 60 }],
+        recordings: [],
+      }),
+    )
+    const store = new Store({ dataDir: data, outputDir: join(dir, 'out') }).load()
+    expect(store.state.monitors[0]?.uniqueId).toBe('alice')
+    expect(store.state.monitors[0] && 'mode' in store.state.monitors[0]).toBe(false)
   })
 
   test('marks interrupted jobs failed on load', () => {

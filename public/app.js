@@ -152,11 +152,10 @@ function monitorCard(monitor) {
   const meta = h(
     'div',
     { class: 'monitor-meta' },
-    h('span', { class: 'chip', text: monitor.mode }),
     h('span', { class: 'chip', text: monitor.variant }),
     monitor.live && monitor.viewers ? h('span', { class: 'chip', text: `${monitor.viewers} watching` }) : null,
     monitor.maxDurationSec ? h('span', { class: 'chip', text: `max ${Math.round(monitor.maxDurationSec / 60)}m` }) : null,
-    monitor.mode !== 'manual' ? h('span', { class: 'chip', text: `poll ${Math.round(monitor.intervalSec / 60)}m` }) : null,
+    h('span', { class: 'chip', text: `poll ${Math.round(monitor.intervalSec / 60)}m` }),
   )
 
   const variant = h(
@@ -199,7 +198,7 @@ function monitorCard(monitor) {
           text: 'Record',
         }),
     variant,
-    monitor.mode === 'manual' ? null : auto,
+    auto,
     h('button', {
       class: 'icon-btn',
       type: 'button',
@@ -393,7 +392,9 @@ function fillSettings() {
   $('#set-ffmpeg').value = settings.ffmpegPath ?? ''
   $('#set-variant').value = settings.defaultVariant ?? 'best'
   $('#set-interval').value = Math.max(1, Math.round((settings.defaultIntervalSec ?? 180) / 60))
-  $('#add-interval').value = Math.max(1, Math.round((settings.defaultIntervalSec ?? 180) / 60))
+  $('#set-duration').value = settings.defaultMaxDurationSec
+    ? Math.max(1, Math.round(settings.defaultMaxDurationSec / 60))
+    : ''
   $('#set-bitrate').value = settings.bitrate ?? ''
   $('#set-proxy').value = settings.proxy ?? ''
   $('#set-ua').value = settings.userAgent ?? ''
@@ -440,14 +441,6 @@ function targetPayload(value) {
 async function addMonitor(event) {
   event.preventDefault()
   const payload = targetPayload($('#add-target').value)
-  const mode = $('#add-mode').value
-  const variant = $('#add-variant').value
-  const intervalMin = Number($('#add-interval').value) || 1
-  const durationMin = Number($('#add-duration').value) || 0
-  payload.mode = mode
-  payload.variant = variant
-  payload.intervalSec = Math.max(10, Math.round(intervalMin * 60))
-  payload.maxDurationSec = durationMin > 0 ? Math.round(durationMin * 60) : null
   try {
     await api('/api/monitors', { method: 'POST', body: JSON.stringify(payload) })
     $('#add-target').value = ''
@@ -464,7 +457,8 @@ async function saveSettings(event) {
     outputDir: $('#set-output').value.trim(),
     ffmpegPath: $('#set-ffmpeg').value.trim(),
     defaultVariant: $('#set-variant').value,
-    defaultIntervalSec: Math.max(10, Math.round((Number($('#set-interval').value) || 1) * 60)),
+    defaultIntervalSec: Math.max(10, Math.round((Number($('#set-interval').value) || 3) * 60)),
+    defaultMaxDurationSec: Math.max(0, Math.round((Number($('#set-duration').value) || 0) * 60)),
     bitrate: $('#set-bitrate').value.trim(),
     proxy: $('#set-proxy').value.trim(),
     userAgent: $('#set-ua').value.trim(),

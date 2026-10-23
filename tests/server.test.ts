@@ -65,7 +65,7 @@ describe('HTTP API', () => {
       new Request('http://localhost/api/monitors', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ uniqueId: 'streamer', mode: 'manual', variant: 'best' }),
+        body: JSON.stringify({ uniqueId: 'streamer', variant: 'best' }),
       }),
     )
     expect(created.status).toBe(201)

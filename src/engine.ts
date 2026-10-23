@@ -5,12 +5,11 @@ import type {
   LiveRoom,
   Monitor,
   MonitorInput,
-  MonitorMode,
   Recording,
   Variant,
   Result,
 } from './core/types'
-import { MONITOR_MODES, VARIANTS } from './core/types'
+import { VARIANTS } from './core/types'
 import type { LiveResolver } from './tiktok/client'
 import { normalizeInput, selectSource } from './tiktok/client'
 import { startRecorder, type RecorderFactory, type RecorderHandle, type RecorderResult } from './recorder/ffmpeg'
@@ -39,7 +38,6 @@ interface Active {
 export interface EngineOptions {
   recorder?: RecorderFactory
   now?: () => number
-  followLimit?: number
   bootStaggerMs?: number
 }
 
@@ -48,7 +46,6 @@ export class Engine {
   private readonly resolver: LiveResolver
   private readonly recorder: RecorderFactory
   private readonly now: () => number
-  private readonly followLimit: number
   private readonly bootStaggerMs: number
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
   private readonly awaitingFirstTick = new Set<string>()
@@ -64,23 +61,20 @@ export class Engine {
     this.resolver = resolver
     this.recorder = options.recorder ?? startRecorder
     this.now = options.now ?? Date.now
-    this.followLimit = options.followLimit ?? 10
     this.bootStaggerMs = options.bootStaggerMs ?? 1_500
   }
 
   start(): void {
     this.stopped = false
     let repaired = false
-    const sweepTotal = this.store.state.monitors.filter(
-      (monitor) => monitor.mode !== 'manual' && monitor.state !== 'stopped',
-    ).length
+    const sweepTotal = this.store.state.monitors.filter((monitor) => monitor.state !== 'stopped').length
     for (const monitor of this.store.state.monitors) {
       if (monitor.state === 'recording' || monitor.state === 'checking') {
-        monitor.state = monitor.mode === 'manual' ? 'idle' : 'waiting'
+        monitor.state = 'waiting'
         monitor.recordingId = null
         repaired = true
       }
-      if (monitor.mode !== 'manual' && monitor.state !== 'stopped') {
+      if (monitor.state !== 'stopped') {
         this.scheduleFirstCheck(monitor.id, sweepTotal)
       }
     }
@@ -112,16 +106,12 @@ export class Engine {
     if (!uniqueId && !roomId) {
       throw new EngineError('Provide a username, live URL, or room id.', 400)
     }
-    const mode = parseMode(input.mode)
-    if (mode === 'followers' && !uniqueId) {
-      throw new EngineError('Followers mode needs a TikTok username (not a room id).', 400)
-    }
     const variant = parseVariant(input.variant, this.store.state.settings.defaultVariant)
     const intervalSec = clampInt(input.intervalSec, 10, 86_400, this.store.state.settings.defaultIntervalSec)
     const maxDurationSec =
       input.maxDurationSec === null || input.maxDurationSec === 0
         ? null
-        : clampInt(input.maxDurationSec, 5, 86_400, 0) || null
+        : clampInt(input.maxDurationSec, 5, 86_400, this.store.state.settings.defaultMaxDurationSec) || null
 
     const existing = this.store.state.monitors.find(
       (monitor) =>
@@ -129,7 +119,6 @@ export class Engine {
         (roomId && monitor.roomId === roomId),
     )
     if (existing) {
-      existing.mode = mode
       existing.variant = variant
       existing.intervalSec = intervalSec
       existing.maxDurationSec = maxDurationSec
@@ -145,7 +134,6 @@ export class Engine {
       id: Bun.randomUUIDv7(),
       uniqueId,
       roomId,
-      mode,
       variant,
       autoRecord: input.autoRecord ?? false,
       intervalSec,
@@ -174,17 +162,10 @@ export class Engine {
       variant?: Variant
       intervalSec?: number
       maxDurationSec?: number | null
-      mode?: MonitorMode
     },
   ): Monitor {
     const monitor = this.store.monitor(id)
     if (!monitor) throw new EngineError('Monitor not found.', 404)
-    if (patch.mode) {
-      if (patch.mode === 'followers' && !monitor.uniqueId) {
-        throw new EngineError('Followers mode needs a username.', 400)
-      }
-      monitor.mode = patch.mode
-    }
     if (patch.variant) monitor.variant = parseVariant(patch.variant, monitor.variant)
     if (patch.intervalSec !== undefined) {
       monitor.intervalSec = clampInt(patch.intervalSec, 10, 86_400, monitor.intervalSec)
@@ -220,15 +201,8 @@ export class Engine {
     monitor.state = 'checking'
     monitor.lastError = null
     try {
-      if (monitor.mode === 'followers') {
-        const following = await this.resolver.following(monitor.uniqueId ?? '')
-        monitor.title = `${following.length} following`
-        monitor.live = following.length > 0
-        monitor.state = following.length > 0 ? 'live' : 'waiting'
-      } else {
-        const room = await this.resolveMonitor(monitor)
-        this.applyRoom(monitor, room)
-      }
+      const room = await this.resolveMonitor(monitor)
+      this.applyRoom(monitor, room)
     } catch (error) {
       this.failMonitor(monitor, error)
       this.store.save()
@@ -277,13 +251,11 @@ export class Engine {
     this.forgetFirstCheck(id)
     if (this.stopped) return
     const monitor = this.store.monitor(id)
-    if (!monitor || monitor.mode === 'manual') return
+    if (!monitor) return
 
     try {
       if (this.activeForMonitor(id)) {
         monitor.state = 'recording'
-      } else if (monitor.mode === 'followers') {
-        await this.tickFollowers(monitor)
       } else {
         await this.tickAutomatic(monitor)
       }
@@ -308,36 +280,6 @@ export class Engine {
     } else {
       monitor.state = room.status === 'live' ? 'live' : 'waiting'
     }
-  }
-
-  private async tickFollowers(monitor: Monitor): Promise<void> {
-    monitor.state = 'checking'
-    monitor.lastError = null
-    const following = await this.resolver.following(monitor.uniqueId ?? '')
-    monitor.lastCheckedAt = this.now()
-    let liveCount = 0
-    let started = 0
-    for (const user of following.slice(0, this.followLimit)) {
-      if (this.byUser(user.uniqueId)) {
-        liveCount += 1
-        continue
-      }
-      try {
-        const room = await this.resolver.resolve({ uniqueId: user.uniqueId })
-        if (room.status !== 'live') continue
-        liveCount += 1
-        if (monitor.autoRecord && started < 3) {
-          await this.begin(monitor, room)
-          started += 1
-        }
-      } catch {
-        continue
-      }
-    }
-    monitor.live = liveCount > 0
-    monitor.title = `${following.length} following · ${liveCount} live`
-    monitor.viewers = liveCount
-    monitor.state = liveCount > 0 ? 'live' : 'waiting'
   }
 
   private async begin(monitor: Monitor, room: LiveRoom): Promise<Recording> {
@@ -456,7 +398,7 @@ export class Engine {
     const monitor = active.monitorId ? this.store.monitor(active.monitorId) : undefined
     if (monitor) {
       monitor.recordingId = null
-      monitor.state = recording.state === 'failed' ? 'error' : monitor.mode === 'manual' ? 'idle' : 'waiting'
+      monitor.state = recording.state === 'failed' ? 'error' : 'waiting'
       if (recording.state === 'failed') monitor.lastError = result.error
       monitor.updatedAt = endedAt
     }
@@ -496,7 +438,7 @@ export class Engine {
 
   private reschedule(monitor: Monitor): void {
     this.clearTimer(monitor.id)
-    if (monitor.mode !== 'manual' && !this.stopped) {
+    if (!this.stopped) {
       this.scheduleFirstCheck(monitor.id, this.awaitingFirstTick.size + 1)
     }
   }
@@ -555,10 +497,6 @@ function clampInt(value: number | undefined, min: number, max: number, fallback:
 
 function parseVariant(value: Variant | undefined, fallback: Variant): Variant {
   return value && VARIANTS.includes(value) ? value : fallback
-}
-
-function parseMode(value: MonitorMode | undefined): MonitorMode {
-  return value && MONITOR_MODES.includes(value) ? value : 'manual'
 }
 
 export function formatBytes(bytes: number): string {

@@ -6,9 +6,6 @@
 export const VARIANTS = ['best', 'hd', 'sd', 'audio'] as const
 export type Variant = (typeof VARIANTS)[number]
 
-export const MONITOR_MODES = ['manual', 'automatic', 'followers'] as const
-export type MonitorMode = (typeof MONITOR_MODES)[number]
-
 export type LiveStatus = 'live' | 'offline'
 export type StreamFormat = 'flv' | 'hls' | 'm4a'
 
@@ -39,11 +36,6 @@ export interface ResolveResult {
   room: LiveRoom
   /** Which stream to feed ffmpeg. Null when offline or no feed. */
   source: StreamSource | null
-}
-
-export interface FollowingUser {
-  uniqueId: string
-  secUid: string | null
 }
 
 export type RecordingState =
@@ -84,7 +76,6 @@ export interface Monitor {
   id: string
   uniqueId: string | null
   roomId: string | null
-  mode: MonitorMode
   variant: Variant
   autoRecord: boolean
   intervalSec: number
@@ -109,6 +100,7 @@ export interface Settings {
   userAgent: string
   defaultVariant: Variant
   defaultIntervalSec: number
+  defaultMaxDurationSec: number
   bitrate: string
   keepSource: boolean
 }
@@ -124,7 +116,6 @@ export interface MonitorInput {
   uniqueId?: string
   url?: string
   roomId?: string
-  mode?: MonitorMode
   variant?: Variant
   autoRecord?: boolean
   intervalSec?: number

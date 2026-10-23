@@ -4,8 +4,8 @@ A web-first TikTok Live recorder. Clean-room implementation of the feature surfa
 [Michele0303/tiktok-live-recorder](https://github.com/Michele0303/tiktok-live-recorder),
 built on Bun, Elysia, TypeScript 7, and ffmpeg. No upstream source code is copied.
 
-Add a creator to the watchlist, leave the server running, and tokweb captures each live
-session to a browser-playable MP4. The dashboard splits the watchlist into offline, live,
+Add a creator to the watchlist, leave the server running, and tokweb records each live
+session to a browser-playable MP4 once auto-record is enabled on that card. The dashboard splits the watchlist into offline, live,
 and recording columns and shows the archive below.
 
 ## Requirements
@@ -22,11 +22,11 @@ bun start
 # open http://127.0.0.1:3000
 ```
 
-Record a creator from the CLI immediately:
+Add a creator from the CLI; the dashboard opens so you can enable auto-record:
 
 ```bash
-bun start -user @creator -mode manual
-bun start -url https://www.tiktok.com/@creator/live -mode automatic -automatic_interval 2
+bun start -user @creator
+bun start -url https://www.tiktok.com/@creator/live -automatic_interval 2
 ```
 
 Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalizes the file.
@@ -44,13 +44,12 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
    check by 1.5s each, capped at 45s per sweep, so a restart does not fire every
    TikTok lookup at once.
 
-## Recording modes
+## Monitoring
 
-| Mode | Behavior |
-| --- | --- |
-| `manual` | Check or record on demand. The CLI records once at startup. |
-| `automatic` | Polls the room on an interval (default 3 min) and records only after auto-record is enabled. Default for new dashboard monitors. |
-| `followers` | Polls the following list of an account and records followed creators who are live. Requires authenticated cookies; experimental. |
+Every monitor polls TikTok on an interval (3 min by default, set in Settings) and records
+a live room only when auto-record is enabled on its card. New monitors start with
+auto-record off. Multiple monitors are added from the username field; quality, interval,
+and max segment come from Settings, with per-monitor overrides available through the API.
 
 ## CLI
 
@@ -61,8 +60,7 @@ Upstream-compatible flags use a single dash. The dashboard always starts.
 | `-user <USER>` | Username(s), comma separated |
 | `-url <URL>` | TikTok live URL |
 | `-room_id <ID>` | TikTok room id |
-| `-mode <MODE>` | `manual`, `automatic`, `followers` |
-| `-automatic_interval <MIN>` | Poll interval in minutes |
+| `-automatic_interval <MIN>` | Default poll interval in minutes |
 | `-output <DIR>` | Recordings directory (default `./recordings`) |
 | `-duration <SECONDS>` | Max segment length |
 | `-proxy <URL>` | HTTP proxy for TikTok and ffmpeg |
@@ -90,8 +88,8 @@ Paste either format into Settings or pass `-cookies`:
 sessionid=...; ttwid=...
 ```
 
-The client also fetches a `ttwid` automatically. `sessionid` is required for followers
-mode and usually helps in blocked regions. Cookies remain in `data/state.json` in plain
+The client also fetches a `ttwid` automatically. Cookies usually help in blocked
+regions. Cookies remain in `data/state.json` in plain
 text on this machine. Do not expose the dashboard to an untrusted network: it has no
 authentication.
 
@@ -150,8 +148,8 @@ deletion, and a spawned CLI server.
 - TikTok aggressively rate-limits room lookups from some IPs (`HTTP 403` / `429`). The
   resolver retries, obtains a `ttwid`, and falls back to the live page; if all paths are
   blocked, add cookies or use a proxy.
-- Followers mode depends on private TikTok endpoints whose shape changes; treat it as
-  experimental.
+- Monitors poll sequentially; large watchlists spread first checks on boot but recurring
+  ticks are independent timers.
 - Streams that are HEVC or otherwise not browser-compatible may need a bitrate set so the
   final file is re-encoded.
 - The journal is a single JSON file owned by one process. Do not run two tokweb

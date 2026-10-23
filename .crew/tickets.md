@@ -83,3 +83,15 @@ capture is playable.
   after the first check firing immediately. Evidence: `.crew/evidence/boot-stagger.md`.
 - [ ] Followers mode still resolves up to `followLimit` (10) followed creators back to
   back inside one tick with no gap. Not covered by this change.
+
+## Phase I: single automatic mode
+
+- [x] Removed `manual` and `followers` modes end to end: types, engine tick/check/start,
+  PATCH/API input, CLI `-mode`, resolver `following()`, followers tests.
+- [x] Add form reduced to the username field; quality, poll, and max segment come from
+  Settings (`defaultVariant`, `defaultIntervalSec`, new `defaultMaxDurationSec`).
+- [x] Stored monitors keep working: `mode` is stripped on load; legacy manual/followers
+  monitors now poll automatically.
+- [x] Followers IP-burst item from Phase H is obsolete with followers mode removed.
+- [x] Verification: 41 tests, typecheck clean, E2E VERIFIED. Evidence:
+  `.crew/evidence/single-mode.md`.

@@ -1,8 +1,8 @@
 import { Elysia } from 'elysia'
 import { basename, isAbsolute, join, resolve, sep } from 'node:path'
 import { Engine, EngineError } from './engine'
-import type { MonitorMode, Variant } from './core/types'
-import { MONITOR_MODES, VARIANTS } from './core/types'
+import type { Variant } from './core/types'
+import { VARIANTS } from './core/types'
 import type { Store } from './store'
 import { TikTokClient, TikTokError, selectSource } from './tiktok/client'
 
@@ -64,8 +64,6 @@ function monitorInput(body: unknown): Parameters<Engine['addMonitor']>[0] {
     url: string('url'),
     roomId: string('roomId'),
   }
-  const mode = string('mode')
-  if (mode && (MONITOR_MODES as readonly string[]).includes(mode)) result.mode = mode as MonitorMode
   const variant = string('variant')
   if (variant && (VARIANTS as readonly string[]).includes(variant)) result.variant = variant as Variant
   if (typeof input.autoRecord === 'boolean') result.autoRecord = input.autoRecord
@@ -84,9 +82,6 @@ function monitorPatch(body: unknown): Parameters<Engine['updateMonitor']>[1] {
   if (typeof input.maxDurationSec === 'number') patch.maxDurationSec = input.maxDurationSec
   if (typeof input.variant === 'string' && (VARIANTS as readonly string[]).includes(input.variant)) {
     patch.variant = input.variant as Variant
-  }
-  if (typeof input.mode === 'string' && (MONITOR_MODES as readonly string[]).includes(input.mode)) {
-    patch.mode = input.mode as MonitorMode
   }
   return patch
 }
@@ -124,6 +119,9 @@ async function updateSettings(deps: ServerDeps, body: unknown): Promise<void> {
   }
   if (typeof input.defaultIntervalSec === 'number') {
     settings.defaultIntervalSec = Math.min(86_400, Math.max(10, Math.round(input.defaultIntervalSec)))
+  }
+  if (typeof input.defaultMaxDurationSec === 'number') {
+    settings.defaultMaxDurationSec = Math.min(86_400, Math.max(0, Math.round(input.defaultMaxDurationSec)))
   }
   deps.store.save()
 }

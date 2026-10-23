@@ -1,15 +1,8 @@
-import type {
-  FollowingUser,
-  LiveRoom,
-  ResolveInput,
-  StreamSource,
-  Variant,
-} from '../core/types'
+import type { LiveRoom, ResolveInput, StreamSource, Variant } from '../core/types'
 import { parseLivePage, parseLiveRoomResponse, pickStream } from './parse'
 
 export interface LiveResolver {
   resolve(input: ResolveInput): Promise<LiveRoom>
-  following(uniqueId: string): Promise<FollowingUser[]>
 }
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
@@ -117,7 +110,6 @@ export class TikTokClient implements LiveResolver {
   private ttwid = ''
   private ttwidAt = 0
   private ttwidTriedAt = 0
-  private readonly secUids = new Map<string, string>()
 
   constructor(options: TikTokOptions = {}) {
     this.fetchImpl = options.fetch ?? fetch
@@ -287,69 +279,4 @@ export class TikTokClient implements LiveResolver {
     return ''
   }
 
-  async following(uniqueId: string): Promise<FollowingUser[]> {
-    const secUid = await this.secUid(uniqueId)
-    if (!secUid) {
-      throw new TikTokError(
-        `Could not find secUid for @${uniqueId}. Followers mode needs a logged-in cookies.json.`,
-        'blocked',
-      )
-    }
-    const body = await this.getJson(
-      `https://www.tiktok.com/api/user/list/?aid=1988&secUid=${encodeURIComponent(secUid)}&count=30&cursor=0`,
-      `https://www.tiktok.com/@${uniqueId}`,
-    )
-    const users = collectFollowing(body)
-    if (users.length === 0) {
-      throw new TikTokError(
-        'TikTok returned no following list. Followers mode needs a logged-in cookies.json.',
-        'blocked',
-      )
-    }
-    return users
-  }
-
-  private async secUid(uniqueId: string): Promise<string | null> {
-    const cached = this.secUids.get(uniqueId.toLowerCase())
-    if (cached) return cached
-    try {
-      const response = await this.request(`https://www.tiktok.com/@${encodeURIComponent(uniqueId)}`, {
-        headers: { Accept: 'text/html' },
-      })
-      if (response.ok) {
-        const html = await response.text()
-        const match = html.match(/"secUid":"([^"]+)"/)
-        if (match?.[1]) {
-          this.secUids.set(uniqueId.toLowerCase(), match[1])
-          return match[1]
-        }
-      }
-    } catch {
-      // Fall through.
-    }
-    return null
-  }
-}
-
-function collectFollowing(node: unknown, depth = 0): FollowingUser[] {
-  if (depth > 8 || typeof node !== 'object' || node === null) return []
-  if (Array.isArray(node)) {
-    const direct = node
-      .map((item) => {
-        if (typeof item !== 'object' || item === null) return null
-        const user = (item as Record<string, unknown>).user ?? item
-        if (typeof user !== 'object' || user === null) return null
-        const u = user as Record<string, unknown>
-        const uniqueId = typeof u.uniqueId === 'string' ? u.uniqueId : ''
-        if (!uniqueId) return null
-        return { uniqueId, secUid: typeof u.secUid === 'string' ? u.secUid : null }
-      })
-      .filter((item): item is FollowingUser => item !== null)
-    if (direct.length > 0) return direct
-  }
-  for (const value of Object.values(node as Record<string, unknown>)) {
-    const hit = collectFollowing(value, depth + 1)
-    if (hit.length > 0) return hit
-  }
-  return []
 }

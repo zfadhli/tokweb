@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   userAgent: '',
   defaultVariant: 'best',
   defaultIntervalSec: 180,
+  defaultMaxDurationSec: 0,
   bitrate: '',
   keepSource: false,
 }
@@ -40,6 +41,7 @@ function loadedSettings(raw: unknown, fallback: Settings): Settings {
     userAgent: pick('userAgent'),
     defaultVariant: pick('defaultVariant'),
     defaultIntervalSec: Math.max(10, Number(pick('defaultIntervalSec')) || 180),
+    defaultMaxDurationSec: Math.min(86_400, Math.max(0, Math.round(Number(pick('defaultMaxDurationSec')) || 0))),
     bitrate: pick('bitrate'),
     keepSource: Boolean(pick('keepSource')),
   }
@@ -55,10 +57,23 @@ function loadedRecordings(raw: unknown): Recording[] {
 
 function loadedMonitors(raw: unknown): Monitor[] {
   if (!Array.isArray(raw)) return []
-  return raw.filter(
-    (item): item is Monitor =>
-      isRecord(item) && typeof item.id === 'string' && typeof item.createdAt === 'number',
-  )
+  let legacy = 0
+  const monitors = raw
+    .filter(
+      (item): item is Monitor =>
+        isRecord(item) && typeof item.id === 'string' && typeof item.createdAt === 'number',
+    )
+    .map((item) => {
+      if (!('mode' in item)) return item
+      legacy += 1
+      const copy = { ...item } as Monitor & { mode?: string }
+      delete copy.mode
+      return copy
+    })
+  if (legacy > 0) {
+    console.warn(`tokweb: ${legacy} stored monitor(s) now use automatic polling.`)
+  }
+  return monitors
 }
 
 export class Store {

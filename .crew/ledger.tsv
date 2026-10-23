@@ -24,3 +24,4 @@ U2	fix	`.status.recording` collided with archive row `.recording` rule	scoped to
 U3	change	first check per monitor staggered on resume (bootStaggerMs 1500, 45s cap)	SHIP	bun test 35 pass; typecheck clean; e2e VERIFIED; measured gaps 79/80 ms at step 80, span 159 ms	fix-root-causes
 U4	change	default poll 180s; new monitors autoRecord off (dashboard, CLI, API)	SHIP	bun test 36 pass; typecheck clean; e2e VERIFIED	laziness-protocol
 U5	change	file names drop room id + date dashes; parseFileName reads current and legacy names	SHIP	bun test 41 pass; typecheck clean	fix-root-causes
+U6	change	manual+followers modes removed; username-only add form; global max segment	SHIP	bun test 41 pass; typecheck clean; e2e VERIFIED	fix-root-causes

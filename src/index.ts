@@ -3,13 +3,13 @@ import { Engine } from './engine'
 import { createApp } from './server'
 import { Store } from './store'
 import { TikTokClient } from './tiktok/client'
-import { MONITOR_MODES, type MonitorMode, type Variant, VARIANTS } from './core/types'
+import type { Variant } from './core/types'
+import { VARIANTS } from './core/types'
 
 interface CliOptions {
   user?: string
   url?: string
   roomId?: string
-  mode: MonitorMode
   intervalSec?: number
   durationSec?: number
   output?: string
@@ -25,11 +25,10 @@ interface CliOptions {
   telegram: boolean
 }
 
-const isMode = (value: string): value is MonitorMode => MONITOR_MODES.some((mode) => mode === value)
 const isVariant = (value: string): value is Variant => VARIANTS.some((variant) => variant === value)
 
 function parseCli(argv: string[]): CliOptions {
-  const options: CliOptions = { mode: 'manual', port: 3000, host: '127.0.0.1', help: false, telegram: false }
+  const options: CliOptions = { port: 3000, host: '127.0.0.1', help: false, telegram: false }
   for (let index = 0; index < argv.length; index += 1) {
     const raw = argv[index]
     if (!raw?.startsWith('-')) continue
@@ -66,12 +65,6 @@ function parseCli(argv: string[]): CliOptions {
       case 'roomId':
         options.roomId = value
         break
-      case 'mode': {
-        const modeValue = value ?? ''
-        if (!isMode(modeValue)) throw new Error(`Unknown mode "${value}". Use manual, automatic, or followers.`)
-        options.mode = modeValue
-        break
-      }
       case 'automatic_interval':
       case 'interval':
         options.intervalSec = Number(value)
@@ -127,8 +120,7 @@ Recording flags (upstream-compatible):
   -user <USER>              Username(s), comma separated
   -url <URL>                TikTok live URL
   -room_id <ID>             TikTok room id
-  -mode <MODE>              manual (default), automatic, followers
-  -automatic_interval <MIN> Poll interval in minutes for automatic mode
+  -automatic_interval <MIN> Default poll interval in minutes
   -output <DIR>             Recordings directory (default ./recordings)
   -duration <SECONDS>       Max segment length
   -proxy <URL>              HTTP proxy for TikTok and ffmpeg
@@ -213,20 +205,13 @@ async function main(): Promise<void> {
     try {
       const monitor = await engine.addMonitor({
         ...seed,
-        mode: options.mode,
         variant: options.variant,
         intervalSec: numberOrUndefined(options.intervalSec ? options.intervalSec * 60 : undefined, 10, 86_400),
-        maxDurationSec: numberOrUndefined(options.durationSec, 5, 86_400) ?? null,
+        maxDurationSec: options.durationSec
+          ? numberOrUndefined(options.durationSec, 5, 86_400)
+          : undefined,
       })
-      console.log(`monitor ready: @${monitor.uniqueId ?? monitor.roomId} (${monitor.mode})`)
-      if (options.mode === 'manual') {
-        try {
-          const recording = await engine.recordNow(monitor.id)
-          console.log(`recording @${recording.uniqueId} -> ${recording.uniqueId}_${recording.roomId ?? 'room'}.mp4`)
-        } catch (error) {
-          console.warn(`not recording: ${error instanceof Error ? error.message : String(error)}`)
-        }
-      }
+      console.log(`monitor ready: @${monitor.uniqueId ?? monitor.roomId}`)
     } catch (error) {
       console.error(`monitor failed: ${error instanceof Error ? error.message : String(error)}`)
     }
