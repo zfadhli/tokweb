@@ -423,6 +423,9 @@ export class Engine {
   }
 
   private failMonitor(monitor: Monitor, error: unknown): void {
+    // A failed lookup says nothing about liveness, so drop the last known flag:
+    // a monitor that cannot be checked belongs under Offline, not Live.
+    monitor.live = false
     monitor.state = 'error'
     monitor.lastError = errorMessage(error)
     monitor.lastCheckedAt = this.now()

@@ -40,6 +40,21 @@ describe('Engine', () => {
     await engine.stop()
   })
 
+  test('a failed check clears the live flag so the row falls back to offline', async () => {
+    const { resolver, engine } = setup()
+    engine.start()
+    const monitor = await engine.addMonitor({ uniqueId: 'streamer', intervalSec: 10, autoRecord: false })
+    await sleep(40)
+    expect(monitor.live).toBe(true)
+
+    resolver.error = new Error('rate limited')
+    await expect(engine.check(monitor.id)).rejects.toThrow('rate limited')
+
+    expect(monitor.state).toBe('error')
+    expect(monitor.live).toBe(false)
+    await engine.stop()
+  })
+
   test('new monitors default to a 3 minute poll with auto-record off', async () => {
     const { engine, recorder } = setup()
     engine.start()
