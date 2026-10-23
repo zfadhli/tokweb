@@ -1,0 +1,7 @@
+node_modules/
+data/
+recordings/
+*.log
+.crew/tmp/
+
+.pi/

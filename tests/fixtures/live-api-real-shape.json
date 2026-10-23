@@ -1,0 +1,23 @@
+{
+  "statusCode": 0,
+  "data": {
+    "user": {
+      "uniqueId": "aljazeera",
+      "nickname": "الجزيرة",
+      "avatarThumb": "https://cdn.example.com/avatar.webp",
+      "roomId": "7698480612664183559",
+      "status": 2
+    },
+    "liveRoom": {
+      "status": 2,
+      "title": "تغطية مباشرة",
+      "liveRoomStats": { "enterCount": 15932794, "userCount": 11425 },
+      "streamData": {
+        "pull_data": {
+          "options": { "default_quality": { "sdk_key": "hd", "name": "720p" } },
+          "stream_data": "{\"common\":{\"room_id\":7698480612664183559},\"data\":{\"hd\":{\"main\":{\"flv\":\"https://cdn.example.com/hd.flv\",\"hls\":\"https://cdn.example.com/hd.m3u8\",\"lls\":\"https://cdn.example.com/hd.sdp\"},\"backup\":{\"flv\":\"https://cdn.example.com/hd-backup.flv\"}},\"ao\":{\"main\":{\"flv\":\"https://cdn.example.com/audio.flv\",\"hls\":\"https://cdn.example.com/audio.m3u8\"}}}}"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+id	phase	unit	verdict	evidence	principle
+F1	frame	predicate + rigor	set	README.md; .crew/tickets.md	prove-it-works
+F2	frame	blockers: TikTok 403/429, cookies	set	.crew/research/tiktok-live-api.md	never-block-on-the-human
+D1	design	stack and module boundaries	set	.crew/adr/0001-architecture.md	foundational-thinking
+D2	design	boundary parsing + unions	set	src/tiktok/parse.ts; src/core/types.ts	type-system-discipline
+S1	scaffold	bun + elysia + TS7	verified	package.json; tsconfig.json	sequence-verifiable-units
+U1	unit	naming	verified	tests/store.test.ts	-
+U2	unit	journal + reconciliation	verified	tests/store.test.ts	make-operations-idempotent
+U3	unit	TikTok parser	verified	tests/parse.test.ts	boundary-discipline
+U4	unit	TikTok client retries/cookies/HTML	verified	tests/client.test.ts; .crew/evidence/probe-live.txt	boundary-discipline
+U5	unit	ffmpeg record/stop/remux	verified	tests/recorder.test.ts	prove-it-works
+U6	unit	monitor engine modes	verified	tests/engine.test.ts	separate-before-serializing-shared-state
+U7	unit	Elysia API/SSE/range	verified	tests/server.test.ts	-
+U8	unit	dashboard	verified	.crew/evidence/desktop.png; .crew/evidence/mobile.png	experience-first
+V1	verify	unit + type gates	verified	.crew/evidence/tests.txt; .crew/evidence/tsc.txt	sequence-verifiable-units
+V2	verify	fake-live E2E	verified	.crew/evidence/e2e.txt	prove-it-works
+V3	verify	real live resolve + 6 s capture	verified	.crew/evidence/probe-live.txt; .crew/evidence/ffprobe.txt	prove-it-works
+V4	verify	visual review	SHIP after 5 passes	.crew/evidence/review.md	experience-first
+O1	open	followers mode against a logged-in account	inconclusive	.crew/tickets.md	-
+O2	open	long-session capture beyond 6 s	inferred	.crew/tickets.md	-

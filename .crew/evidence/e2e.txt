@@ -1,0 +1,10 @@
+tokweb end-to-end proof
+✓ GET / serves the dashboard
+✓ static assets served
+✓ POST /api/monitors created an automatic monitor
+✓ ffmpeg captured fixturecreator_7123456789012345678_2026-10-23_10-07-54.mp4 (901201 bytes)
+✓ range playback endpoint returns 206 with 100 bytes
+✓ snapshot is idle, monitor retained, cookies masked
+✓ DELETE removes the index entry and the file
+✓ spawned CLI server booted on :39222 and served the dashboard
+E2E VERIFIED

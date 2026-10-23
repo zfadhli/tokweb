@@ -1,0 +1,23 @@
+{
+  "statusCode": 0,
+  "data": {
+    "user": {
+      "uniqueId": "streamer",
+      "nickname": "Test Streamer",
+      "avatarThumb": "https://cdn.example.com/avatar.jpg",
+      "roomId": "7000000000000000001",
+      "status": 2
+    },
+    "liveRoom": {
+      "status": 2,
+      "roomId": "7000000000000000001",
+      "title": "Clean-room test stream",
+      "stats": { "total_user": 1234, "user_count": 4321 },
+      "streamData": {
+        "pull_data": {
+          "stream_data": "{\"data\":{\"main\":{\"flv\":\"https://cdn.example.com/live/main.flv\",\"hls\":\"https://cdn.example.com/live/main.m3u8\"},\"hd\":{\"flv\":\"https://cdn.example.com/live/hd.flv\"},\"sd\":{\"flv\":\"https://cdn.example.com/live/sd.flv\"}},\"live_room\":{\"roomId\":\"7000000000000000001\"}}"
+        }
+      }
+    }
+  }
+}
