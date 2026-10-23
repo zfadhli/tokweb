@@ -5,13 +5,17 @@ A web-first TikTok Live recorder. Clean-room implementation of the feature surfa
 built on Bun, Elysia, TypeScript 7, and ffmpeg. No upstream source code is copied.
 
 Add a creator to the watchlist, leave the server running, and tokweb records each live
-session to a browser-playable MP4 once auto-record is enabled on that card. The dashboard splits the watchlist into offline, live,
-and recording columns and shows the archive below.
+session to a browser-playable MP4 once auto-record is enabled for that user.
+
+The app has four pages. **Overview** shows the live numbers, a seven-day capture chart,
+the latest recordings, and the watchlist. **Watch** adds users and manages each one.
+**Recordings** is the full archive with search, filters, and a player per capture.
+**Admin** holds capture defaults, paths, network settings, and system status.
 
 ## Requirements
 
 - Bun 1.2+ (developed on 1.4.4)
-- ffmpeg on `PATH` (or set `ffmpegPath` in Settings)
+- ffmpeg on `PATH` (or set `ffmpegPath` in Admin)
 - Network access to TikTok; cookies are optional unless your region is blocked
 
 ## Quick start
@@ -22,14 +26,15 @@ bun start
 # open http://127.0.0.1:3000
 ```
 
-Add a creator from the CLI; the dashboard opens so you can enable auto-record:
+Add a creator from the CLI. New users start with auto-record off, so turn it on from
+the Watch page before the next poll:
 
 ```bash
 bun start -user @creator
 bun start -url https://www.tiktok.com/@creator/live -automatic_interval 2
 ```
 
-Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalizes the file.
+Both forms still start the web UI. `Ctrl-C` stops ffmpeg cleanly and finalizes the file.
 
 ## How capture works
 
@@ -38,7 +43,7 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
 2. Pick the requested feed: `best`, `hd`, `sd`, or `audio`.
 3. Spawn ffmpeg with `-c copy` into an intermediate TS. No quality loss, low CPU.
 4. On stop, duration cap, or stream end, remux to MP4 (`+faststart`) and delete the TS.
-   Set a bitrate in Settings to re-encode instead. If remux fails, the TS is kept.
+   Set a bitrate in Admin to re-encode instead. If remux fails, the TS is kept.
 5. Update the journal, reconcile interrupted jobs on boot, and serve the archive with
    byte-range playback. Monitors resuming from the journal stagger their first live
    check by 1.5s each, capped at 45s per sweep, so a restart does not fire every
@@ -46,14 +51,14 @@ Both forms still start the dashboard. `Ctrl-C` stops ffmpeg cleanly and finalize
 
 ## Monitoring
 
-Every monitor polls TikTok on an interval (3 min by default, set in Settings) and records
-a live room only when auto-record is enabled on its card. New monitors start with
-auto-record off. Multiple monitors are added from the username field; quality, interval,
-and max segment come from Settings, with per-monitor overrides available through the API.
+Every monitor polls TikTok on an interval (3 min by default, set in Admin) and records
+a live room only when auto-record is enabled for that user. New monitors start with
+auto-record off. Users are added from one username field; quality, interval, and max
+segment come from Admin, with per-monitor overrides available through the API.
 
 ## CLI
 
-Upstream-compatible flags use a single dash. The dashboard always starts.
+Upstream-compatible flags use a single dash. The web UI always starts.
 
 | Flag | Description |
 | --- | --- |
@@ -68,7 +73,7 @@ Upstream-compatible flags use a single dash. The dashboard always starts.
 | `-ffmpeg_path <PATH>` | ffmpeg binary |
 | `-cookies <FILE\|HEADER>` | `cookies.json` or a raw Cookie header |
 | `-variant <VARIANT>` | `best`, `hd`, `sd`, `audio` |
-| `-port <PORT>` | Dashboard port (default `3000`) |
+| `-port <PORT>` | Web UI port (default `3000`) |
 | `-host <HOST>` | Bind address (default `127.0.0.1`) |
 | `-data_dir <DIR>` | State directory (default `./data`) |
 | `--help` | Usage |
@@ -78,7 +83,7 @@ is not implemented.
 
 ## Cookies
 
-Paste either format into Settings or pass `-cookies`:
+Paste either format into Admin or pass `-cookies`:
 
 ```json
 [{ "name": "sessionid", "value": "..." }, { "name": "ttwid", "value": "..." }]
@@ -90,8 +95,22 @@ sessionid=...; ttwid=...
 
 The client also fetches a `ttwid` automatically. Cookies usually help in blocked
 regions. Cookies remain in `data/state.json` in plain
-text on this machine. Do not expose the dashboard to an untrusted network: it has no
+text on this machine. Do not expose the UI to an untrusted network: it has no
 authentication.
+
+## Pages
+
+| Path | Purpose |
+| --- | --- |
+| `/` | Overview: live stats, seven-day volume, latest captures, watchlist |
+| `/watch` | Add a user and manage the users on watch |
+| `/recordings` | Archive list with search and state filters |
+| `/recordings/:id` | Player, metadata, download, delete |
+| `/admin` | Capture settings, paths, network, system status |
+
+Pages are server-rendered with Handlebars. htmx swaps fragments for live updates and
+form actions; Alpine handles local UI state. `htmx.org`, `alpinejs`, and `handlebars`
+come from npm, served through `/vendor/*`; there is no asset build step.
 
 ## HTTP API
 
@@ -123,9 +142,13 @@ src/
   store.ts             atomic JSON journal, boot reconciliation
   engine.ts            monitor loops, recording lifecycle
   server.ts            Elysia routes, SSE, range responses
+  server/render.ts     Handlebars compile cache and page/layout rendering
+  server/view.ts       formatting and monitor status, pure and tested
+  server/pages/        one route module per page (home, watch, recordings, admin)
+  server/views/        Handlebars pages, layout, partials
   index.ts             CLI + server bootstrap
-public/                dashboard (vanilla JS, no build step)
-scripts/               live probe, e2e proof, screenshot harness
+public/                app.css and the small Alpine/htmx glue script
+scripts/               live probe, e2e proof, fixture server, screenshot harness
 tests/                 bun:test units, fixtures, fake resolver/recorder
 ```
 
@@ -137,6 +160,14 @@ bun run typecheck        # TypeScript 7 native tsc
 bun run e2e              # real HTTP + engine + ffmpeg + disk proof
 bun run probe @creator --record 8
 bun run screenshot http://127.0.0.1:3000 /tmp/tokweb.png 1440 900
+bun scripts/fixture.ts -port 4100   # seeded demo data, no polling, no TikTok
+```
+
+`scripts/fixture.ts` boots the real routes against a throwaway data directory with one
+active capture and a small archive, so page screenshots stay deterministic.
+
+```bash
+bun scripts/screenshot.ts http://127.0.0.1:4100/watch /tmp/watch.png 1440 1000
 ```
 
 `bun run e2e` fakes only the TikTok resolver: a generated FLV stands in for a live feed,
