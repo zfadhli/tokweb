@@ -28,7 +28,7 @@ async function ensureSample(name: string): Promise<string> {
   const child = Bun.spawn({
     cmd: [
       'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
-      '-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=24',
+      '-f', 'lavfi', '-i', 'gradients=size=640x360:rate=24:c0=0x141b26:c1=0x3c2f4a:c2=0x7a4a2e:speed=0.04',
       '-f', 'lavfi', '-i', 'sine=frequency=420:sample_rate=44100',
       '-t', '3', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-movflags', '+faststart', path,
