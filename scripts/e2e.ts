@@ -195,7 +195,7 @@ async function spawnedServer(): Promise<void> {
     )
     const page = await fetch(`${base}/`)
     assert.equal(page.status, 200)
-    assert.match(await page.text(), /Never miss/)
+    assert.match(await page.text(), /TikTok live/)
     const state = await fetch(`${base}/api/state`)
     assert.equal(state.status, 200)
     const body = (await state.json()) as { system: { bun: string } }

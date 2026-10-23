@@ -189,10 +189,12 @@ a {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: clamp(28px, 5vw, 80px);
-  align-items: end;
-  padding: clamp(38px, 6vw, 82px) 0 clamp(30px, 4vw, 54px);
+  grid-template-columns: 1fr;
+  padding: clamp(22px, 3vw, 40px) 0 clamp(28px, 4vw, 46px);
+}
+
+.hero-copy {
+  padding-inline: 22px;
 }
 
 .eyebrow {
@@ -210,80 +212,12 @@ a {
   color: var(--accent);
 }
 
-.hero h1 {
-  margin: 18px 0 20px;
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(58px, 9.2vw, 124px);
-  line-height: 0.84;
-  letter-spacing: -0.045em;
-}
-
-.hero h1 em {
-  color: transparent;
-  -webkit-text-stroke: 1px var(--accent);
-  font-style: italic;
-}
-
 .lede {
+  margin-top: 18px;
   max-width: 54ch;
   color: var(--ink-dim);
   font-size: clamp(14px, 1.3vw, 16px);
   line-height: 1.65;
-}
-
-.signal {
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(23, 27, 33, 0.9), rgba(16, 18, 22, 0.6));
-  padding: 18px 18px 14px;
-  align-self: end;
-}
-
-.signal-head,
-.signal-foot {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
-.signal-head span:last-child {
-  color: var(--accent);
-}
-
-.bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 108px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line-soft);
-  margin-bottom: 12px;
-}
-
-.bars i {
-  flex: 1;
-  height: var(--h);
-  background: linear-gradient(to top, rgba(214, 255, 63, 0.18), var(--accent));
-  transform-origin: bottom;
-  animation: bounce 1.6s ease-in-out infinite alternate;
-  animation-delay: calc(var(--h) * -0.02);
-  opacity: 0.85;
-}
-
-.bars i:nth-child(3n) {
-  background: linear-gradient(to top, rgba(111, 227, 239, 0.14), var(--cyan));
-}
-
-.bars i:nth-child(4n) {
-  opacity: 0.4;
-}
-
-.signal-foot {
-  color: var(--muted);
 }
 
 /* ---------- stats ---------- */
@@ -1204,15 +1138,6 @@ textarea:focus-visible {
 
 /* ---------- motion ---------- */
 
-@keyframes bounce {
-  from {
-    transform: scaleY(0.55);
-  }
-  to {
-    transform: scaleY(1.08);
-  }
-}
-
 @keyframes blink {
   50% {
     opacity: 0.25;
@@ -1235,15 +1160,6 @@ textarea:focus-visible {
 /* ---------- responsive ---------- */
 
 @media (max-width: 1080px) {
-  .hero {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .signal {
-    max-width: 420px;
-  }
-
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -1321,10 +1237,6 @@ textarea:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .hero h1 {
-    font-size: 62px;
-  }
-
   .brand-text small {
     display: none;
   }

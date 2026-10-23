@@ -6,7 +6,6 @@ const state = {
 }
 
 const $ = (selector, root = document) => root.querySelector(selector)
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)]
 
 function h(tag, attrs = {}, ...children) {
   const node = document.createElement(tag)
@@ -132,7 +131,6 @@ function renderStats() {
   $('#recording-count').textContent = String(recordings.length)
   $('#activity-count').textContent = String(snapshot.activity.length)
   $('#foot-version').textContent = `bun ${snapshot.system.bun}`
-  $('#signal-rate').textContent = active > 0 ? `${active} REC` : live > 0 ? `${live} LIVE` : 'IDLE'
   document.title = active > 0 ? `(${active}) tokweb — capturing` : 'tokweb — live capture console'
 }
 
