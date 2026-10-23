@@ -161,7 +161,7 @@ export function homeData(deps: ServerDeps): HomeData {
     ],
     days,
     weekTotal: fmtBytes(total),
-    captures: completed.slice(0, 6).map(captureCard),
+    captures: completed.slice(0, 4).map(captureCard),
     watch: watchRows(monitors),
   }
 }

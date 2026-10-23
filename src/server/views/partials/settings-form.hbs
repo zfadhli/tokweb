@@ -59,14 +59,14 @@
         </div>
         <div class="field span-2">
           <input type="hidden" name="clearCookies" value="" />
-          <label class="check"><input type="checkbox" name="clearCookies" value="1" />Clear saved cookies</label>
+          <label class="check"><input type="checkbox" name="clearCookies" value="1" /><span class="check-box" aria-hidden="true"></span>Clear saved cookies</label>
         </div>
       </div>
       <h3 class="admin-group">Options</h3>
       <div class="form-grid">
         <div class="field span-2">
           <input type="hidden" name="keepSource" value="off" />
-          <label class="check"><input type="checkbox" name="keepSource" value="on"{{#if settings.keepSource}} checked{{/if}} />Keep intermediate TS capture</label>
+          <label class="check"><input type="checkbox" name="keepSource" value="on"{{#if settings.keepSource}} checked{{/if}} /><span class="check-box" aria-hidden="true"></span>Keep intermediate TS capture</label>
         </div>
       </div>
       <div class="form-actions">

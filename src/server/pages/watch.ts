@@ -97,7 +97,7 @@ function pageChrome(deps: ServerDeps): PageChrome {
 }
 
 function panelShell(deps: ServerDeps, notice: string | null = null): string {
-  return `<div ${PANEL_ATTRS}>${renderPartial('partials/users', watchPanel(deps, notice))}</div>`
+  return `<div class="panel" ${PANEL_ATTRS}>${renderPartial('partials/users', watchPanel(deps, notice))}</div>`
 }
 
 function toastTrigger(message: string, level = 'ok'): Record<string, string> {

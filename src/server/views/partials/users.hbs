@@ -1,4 +1,5 @@
 {{#if notice}}<p class="notice is-error">{{notice}}</p>{{/if}}
+<div class="watch-tools">
 <form class="add-form" hx-post="/watch" hx-target="#users-panel" hx-swap="outerHTML" hx-disable="find button">
   <div class="field">
     <label for="watch-target">Username, live URL, or room id</label>
@@ -13,6 +14,7 @@
   <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'live' }" @click="filter = 'live'" :aria-pressed="filter === 'live'">Live ({{counts.live}})</button>
   <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'recording' }" @click="filter = 'recording'" :aria-pressed="filter === 'recording'">Recording ({{counts.recording}})</button>
   <button type="button" class="btn btn-small" :class="{ 'is-active': filter === 'offline' }" @click="filter = 'offline'" :aria-pressed="filter === 'offline'">Offline ({{counts.offline}})</button>
+</div>
 </div>
 {{#if rows.length}}
 <div class="table-wrap">
@@ -48,7 +50,7 @@
           </select>
         </td>
         <td>
-          <label class="check"><input type="checkbox" name="autoRecord"{{#if autoRecord}} checked{{/if}} aria-label="Auto-record @{{handle}}" hx-patch="/watch/{{id}}" hx-trigger="change" hx-include="this" hx-swap="none" />Auto</label>
+          <label class="check"><input type="checkbox" name="autoRecord"{{#if autoRecord}} checked{{/if}} aria-label="Auto-record @{{handle}}" hx-patch="/watch/{{id}}" hx-trigger="change" hx-include="this" hx-swap="none" /><span class="check-box" aria-hidden="true"></span>Auto</label>
         </td>
         <td class="num">{{intervalMin}} min</td>
         <td>
