@@ -27,6 +27,14 @@ export const DEFAULT_SETTINGS: Settings = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+/** Filenames carry the start second; a live recording carries milliseconds. */
+const SAME_CAPTURE_MS = 2_000
+
+function sameCapture(left: Recording, right: { uniqueId: string; startedAt: number | null }): boolean {
+  if (right.startedAt === null || left.uniqueId === 'unknown' || left.uniqueId !== right.uniqueId) return false
+  return Math.abs(left.startedAt - right.startedAt) <= SAME_CAPTURE_MS
+}
+
 function loadedSettings(raw: unknown, fallback: Settings): Settings {
   const input = isRecord(raw) ? raw : {}
   const pick = <K extends keyof Settings>(key: K): Settings[K] => {
@@ -169,6 +177,16 @@ export class Store {
       const info = statSync(path)
       if (!info.isFile()) continue
       const parsed = parseFileName(entry)
+      const twin = parsed ? this.state.recordings.find((recording) => sameCapture(recording, parsed)) : undefined
+      if (twin) {
+        // A restart mid-capture leaves the recording with no file and the .ts
+        // on disk. They are the same capture, so attach instead of adopting.
+        if (!twin.file) {
+          twin.file = entry
+          twin.bytes = info.size
+        }
+        continue
+      }
       this.state.recordings.push({
         id: `disk-${info.ino.toString(36)}-${Math.floor(info.mtimeMs)}`,
         monitorId: null,
@@ -185,6 +203,22 @@ export class Store {
         error: null,
       })
     }
+
+    // States written by older builds already hold the duplicate adoptions.
+    const duplicates = new Set<Recording>()
+    for (const recording of this.state.recordings) {
+      if (!recording.id.startsWith('disk-') || !recording.file) continue
+      const twin = this.state.recordings.find(
+        (other) => other !== recording && !other.id.startsWith('disk-') && sameCapture(other, recording),
+      )
+      if (!twin) continue
+      if (!twin.file) {
+        twin.file = recording.file
+        twin.bytes = recording.bytes
+      }
+      duplicates.add(recording)
+    }
+    if (duplicates.size > 0) this.state.recordings = this.state.recordings.filter((item) => !duplicates.has(item))
 
     this.state.recordings.sort((a, b) => b.startedAt - a.startedAt)
     if (this.state.recordings.length > 500) this.state.recordings.length = 500
