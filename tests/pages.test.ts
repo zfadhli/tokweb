@@ -181,6 +181,20 @@ describe('server-rendered pages', () => {
     expect(html).toContain('class="bar-spacer" style="flex-grow: 100"></span><span class="bar-fill" style="flex-grow: 0"')
   })
 
+  test('handles and titles from TikTok are escaped on every page', async () => {
+    const { app, store, dir } = setup()
+    addRecording(store, dir, {
+      uniqueId: '<img src=x onerror=alert(1)>',
+      title: '<script>alert(2)</script>',
+    })
+    for (const path of ['/', '/recordings', '/recordings/rec-1']) {
+      const html = await (await get(app, path)).text()
+      expect(html).not.toContain('<img src=x onerror')
+      expect(html).not.toContain('<script>alert(2)')
+      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    }
+  })
+
   test('active captures surface a recording count in the chrome', async () => {
     const { app, engine, store } = setup()
     addMonitor(store, { id: 'mon-live', uniqueId: 'aurorabeats', state: 'live', live: true })
